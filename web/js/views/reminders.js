@@ -1,6 +1,6 @@
 // Rappels : création, liste, échéances. Notification macOS à l'échéance tant que JARVIS est ouvert.
 import { get, post } from "../api.js";
-import { btn, el, empty, errorBox, field, input, toast, when } from "../ui.js";
+import { btn, el, empty, errorBox, field, input, toast } from "../ui.js";
 
 export async function render(view, params, app) {
   const title = input({ placeholder: "Ex. Rappeler le restaurant Da Marco" });

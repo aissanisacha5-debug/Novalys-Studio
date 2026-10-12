@@ -2,7 +2,6 @@
 import os
 import threading
 import unittest
-from pathlib import Path
 
 from jarvis import paths
 from jarvis.errors import ConfirmationRequired, PermissionDenied, ToolUnavailable, ValidationError

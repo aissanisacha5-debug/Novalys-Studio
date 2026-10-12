@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..db import now
 from ..errors import JarvisError, LimitReached, PermissionDenied, ValidationError
-from .registry import CONFIRME, ECHOUE, PROBABLE, Tool
+from .registry import CONFIRME, PROBABLE, Tool
 
 MAX_BYTES = 3_000_000
 

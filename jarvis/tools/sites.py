@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from ..errors import NotFound, ValidationError
-from .registry import CONFIRME, ECHOUE, PROBABLE, Tool
+from .registry import CONFIRME, ECHOUE, Tool
 from .web import parse_page
 
 FAKE_REVIEW = re.compile(r"(?i)(★★★★★|5 étoiles|avis client|témoignage)")

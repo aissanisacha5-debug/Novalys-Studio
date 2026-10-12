@@ -188,7 +188,7 @@ const STATUS = {
   terminee: ["ok", "Terminée"], en_cours: ["ok", "En cours"], en_attente: ["plain", "En attente"], pause: ["wait", "En pause"],
   attente_autorisation: ["wait", "Attend votre accord"], attente_reponse: ["wait", "Attend votre réponse"], echouee: ["err", "Échouée"],
   bloquee: ["err", "Bloquée"], annulee: ["plain", "Annulée"], interrompue: ["wait", "Interrompue"],
-  confirme: ["ok", "Confirmé"], probable: ["plain", "Probable"], non_verifie: ["wait", "Non vérifié"], bloque: ["err", "Bloqué"], echoue: ["err", "Échoué"],
+  confirme: ["ok", "Confirmé"], partiel: ["wait", "Partiel"], probable: ["plain", "Probable"], non_verifie: ["wait", "Non vérifié"], bloque: ["err", "Bloqué"], echoue: ["err", "Échoué"],
   sans_objet: ["plain", "Réponse directe"],
   actif: ["ok", "Actif"], idee: ["plain", "Idée"], en_pause: ["wait", "En pause"], termine: ["ok", "Terminé"], archive: ["plain", "Archivé"],
   valide: ["ok", "Valide"], obsolete: ["plain", "Obsolète"], a_verifier: ["wait", "À vérifier"],

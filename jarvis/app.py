@@ -4,7 +4,6 @@ from __future__ import annotations
 import importlib.util
 import json
 import threading
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import VERSION, paths
@@ -24,7 +23,7 @@ from .providers.others import AnthropicAPIProvider, OllamaProvider
 from .scheduler import Scheduler
 from .services import Notifier, Secrets, Voice
 from .tasks import TaskManager
-from .tools import data_tools, documents, files, shell, sites, web
+from .tools import browser, data_tools, documents, files, shell, sites, web
 from .tools.registry import ToolRegistry
 
 _CURRENT: Optional["JarvisApp"] = None
@@ -59,7 +58,7 @@ class JarvisApp:
         for p in (ClaudeCodeProvider(self), OllamaProvider(self), AnthropicAPIProvider(self)):
             self.providers.register(p)
         self.tools = ToolRegistry(self)
-        for mod in (files, shell, web, sites, documents, data_tools):
+        for mod in (files, shell, web, browser, sites, documents, data_tools):
             mod.register(self.tools)
         self.plugins = self._load_plugins()
         self.tasks = TaskManager(self)
@@ -199,6 +198,7 @@ class JarvisApp:
             if ev:
                 ev.set()
         self.voice.stop()
+        browser.shutdown(self)
         for p in self.db.all("SELECT id, pid FROM processes WHERE stopped_at IS NULL"):
             try:
                 import os

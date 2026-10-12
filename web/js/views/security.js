@@ -1,7 +1,7 @@
 // Sécurité : mode et permissions effectives, demandes d'accord en attente, dossiers autorisés, commandes autorisées,
 // zones protégées, secrets (trousseau), outils et niveaux de risque.
 import { get, patch } from "../api.js";
-import { btn, confirmCard, el, errorBox, field, handleError, input, loading, modal, select, status, toast } from "../ui.js";
+import { btn, confirmCard, el, errorBox, field, handleError, input, loading, modal, select, toast } from "../ui.js";
 
 export async function render(view, params, app) {
   const page = el("div", { class: "page" }, loading());

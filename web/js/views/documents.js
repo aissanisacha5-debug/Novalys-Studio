@@ -1,6 +1,6 @@
 // Documents : créer un document (md, txt, html, docx, pdf, csv, xlsx, json), rapports existants, rédaction par JARVIS.
 import { post } from "../api.js";
-import { btn, el, errorBox, field, input, loading, select, textarea, toast, when } from "../ui.js";
+import { btn, el, field, input, loading, select, textarea, toast } from "../ui.js";
 import { quickAsk } from "../app.js";
 
 const tool = (id, args) => post(`/api/tools/${id}/invoke`, { args });

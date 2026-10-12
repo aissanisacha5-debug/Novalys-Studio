@@ -1,6 +1,6 @@
 // Accueil : noyau JARVIS (état réel), saisie, raccourcis, tâches en cours, derniers résultats, alertes.
 import { get, post } from "../api.js";
-import { el, empty, handleError, status, when } from "../ui.js";
+import { el, handleError, status, when } from "../ui.js";
 import { Core } from "../core.js";
 import { composer } from "./chat.js";
 

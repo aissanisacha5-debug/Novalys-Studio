@@ -1,6 +1,8 @@
 # Données privées et secrets : jamais dans Git
 data/
 workspace/
+data-*/
+workspace-*/
 .env
 .env.*
 !.env.example

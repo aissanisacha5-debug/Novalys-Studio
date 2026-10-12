@@ -1,6 +1,6 @@
 // E-mails : brouillons locaux (toujours disponibles) et Gmail via le connecteur (lecture + brouillons, jamais d'envoi).
 import { get, post } from "../api.js";
-import { btn, el, errorBox, field, input, loading, md, modal, status, textarea, toast } from "../ui.js";
+import { btn, el, errorBox, field, input, loading, modal, status, textarea, toast } from "../ui.js";
 import { quickAsk } from "../app.js";
 
 const tool = (id, args) => post(`/api/tools/${id}/invoke`, { args });

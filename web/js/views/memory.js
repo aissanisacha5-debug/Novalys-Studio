@@ -3,7 +3,7 @@ import { del, get, patch, post } from "../api.js";
 import { btn, download, el, empty, errorBox, field, handleError, input, loading, modal, select, status, textarea, toast, when } from "../ui.js";
 
 const TYPES = { preference: "Préférence", info_personnelle: "Info personnelle", objectif: "Objectif", projet: "Projet", decision: "Décision", tache: "Tâche",
-  resultat: "Résultat", instruction: "Instruction", connaissance: "Connaissance", operation: "Opération", resume_conversation: "Résumé", reference_document: "Document" };
+  resultat: "Résultat", instruction: "Instruction", connaissance: "Connaissance", operation: "Opération", resume_conversation: "Résumé", reference_document: "Document", temporaire: "Temporaire" };
 const NATURES = [["fait", "Fait"], ["preference", "Préférence"], ["hypothese", "Hypothèse"]];
 
 export async function render(view, params, app) {

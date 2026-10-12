@@ -9,6 +9,7 @@ Chaque connecteur a une configuration, un état vérifié, des capacités, des p
 | Google Agenda | disponible, **désactivé** par défaut | connecteur claude.ai via `claude -p` | lire, créer un événement | création = risque élevé (confirmation) ; suppression interdite |
 | Notifications macOS | actif | `osascript display notification` | notifications locales | contenu masqué, heures silencieuses |
 | Voix macOS | actif | `say` | 74 voix, volume, vitesse, sortie audio | — |
+| Navigateur piloté | actif (à la demande) | Chrome sans interface + DevTools | pages JavaScript, champs, liens, captures, envoi de formulaire | profil séparé, envoi = accord, champs sensibles interdits |
 | Recherche web | actif | page HTML publique DuckDuckGo + lecture HTTP | recherche, lecture, liens, audit | pas d'adresse locale, 15 pages/tâche, pas de contournement |
 | CRM CYPHER | actif, lecture seule | fichiers CSV de `CYPHER/memoire` | prospects, clients, oppositions, devis, factures | écriture impossible (zone protégée) |
 | Ollama | indisponible | API locale 127.0.0.1:11434 | conversation locale, embeddings | jamais lancé automatiquement |

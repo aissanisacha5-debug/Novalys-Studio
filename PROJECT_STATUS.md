@@ -1,71 +1,63 @@
 # État du projet JARVIS
 
-Mis à jour : 2026-10-12 · Version 0.1.0 · **Phase actuelle : 15 (livraison) terminée pour la v0.1**
+Mis à jour : 2026-10-12 · **Version 0.2.0** (prompt 3 exécuté) · Service réel démarré sur http://127.0.0.1:8765 · Lanceur `~/Applications/JARVIS.app`
 
-## Résumé
-JARVIS fonctionne sur le Mac de Sacha : service local démarré (`http://127.0.0.1:8765`), fenêtre Chrome dédiée, lanceur `~/Applications/JARVIS.app`. Fournisseur IA réel : Claude via Claude Code (abonnement, sans clé API). 64 tests passent (62 hors ligne + 2 avec Claude réel).
+## A. Réalisé
+- **Modules** : API locale + flux temps réel, base SQLite (migrations 0001, 0002), configuration versionnée, journal expurgé, permissions (modes, dossiers, risques A/B/C, confirmations à usage unique), registre de **59 outils**, moteur d'agent (plan, actions JSON, vérification, état final recoupé, prochaine action, lectures parallèles, boucles, idempotence), 12 agents spécialisés, orchestrateur de tâches persistant (dépendances, priorité, pause, reprise, annulation réelle, verrous de fichiers, reprise après redémarrage), mémoire (FTS5, contradictions, temporaire), projets, rappels, automatisations, documents, sites, web, **navigateur piloté**, voix, notifications, connecteurs, fournisseurs IA avec repli, diagnostic copiable, sauvegardes/restauration, plugins.
+- **Interface** Obsidian Emerald : 23 espaces reliés au backend, noyau visuel piloté par les événements réels, responsive (bureau et mobile vérifiés), clavier, réduction des animations.
+- **Outillage** : `python3 jarvis.py start|stop|status|open|backup|test|verifier|check|deps|dev|demo|build`, crochet Git anti-secret, dépôt Git local (point de restauration `eb730a6` avant le prompt 3).
+- **Documents** : README, PROJECT_STATUS, NEXT_STEPS, CHANGELOG, `.env.example`, docs/ SETUP, USAGE, SECURITY, ARCHITECTURE, ENVIRONMENT_AUDIT, CONNECTORS, KNOWN_LIMITATIONS, TROUBLESHOOTING, ROADMAP.
 
-## Phases
-| Phase | État |
+## B. Tests (exécutés le 2026-10-12)
+| Commande | Résultat |
 |---|---|
-| 1 Audit | fait — docs/ENVIRONMENT_AUDIT.md |
-| 2 Architecture | fait — docs/ARCHITECTURE.md |
-| 3 Socle (API, base, config, journal) | fait |
-| 4 Interface Obsidian Emerald (23 espaces) | fait, vérifiée dans un navigateur (bureau 1440×900 et mobile 375×812) |
-| 5 Conversation (modèle réel) | fait — Claude Code |
-| 6 Moteur d'outils, permissions, confirmations | fait |
-| 7 Fichiers et terminal | fait |
-| 8 Mémoire, projets, tâches | fait |
-| 9 Navigateur et intégrations | fait (lecture HTTP + DuckDuckGo ; Gmail/Agenda via Claude Code, désactivés par défaut) |
-| 10 Voix | fait partiellement — synthèse testée ; dictée Chrome implémentée, non testée au micro ; mot d'activation non implémenté |
-| 11 Automatisations | fait |
-| 12 Création web et prospection | fait |
-| 13 Sécurité | fait — tests négatifs |
-| 14 Tests | fait — 64 tests |
-| 15 Livraison | fait |
+| `python3 jarvis.py verifier` | OK — 44 fichiers Python (syntaxe 3.9, imports), 28 JS (syntaxe, imports), CSS (jetons), secrets suivis par Git |
+| `python3 jarvis.py check` | **77 tests, 0 échec**, 3 ignorés (2 tests navigateur quand httpbin.org ne répond pas, 1 hors réseau) |
+| `JARVIS_TEST_REEL=1 python3 -m unittest tests.test_reel` | 3/3 OK (réponse réelle, création de fichier réelle, **parcours complet API → tâche → outil → compte rendu → redémarrage → persistance**) — passé 4 fois de suite après correction |
+| Navigateur piloté (réseau) | OK lors de 5 passages : formulaire rempli et relu, envoi seulement après accord, réponse du site lue, capture PNG ; mot de passe refusé ; adresse locale refusée |
+| Migration réelle | base de Sacha migrée 0001 → 0002 avec sauvegarde `data/backups/*-avant-migration.db` |
+| Lancement à froid | `stop` puis `start` : 14/16 contrôles OK (les 2 restants : Ollama et API Anthropic non configurés) |
+| Interface | 23/23 pages affichées sans erreur sur l'instance réelle (script dans le navigateur intégré) |
 
-## Critères de livraison (partie 36)
+**Défauts trouvés et corrigés pendant la validation** : modèle haiku qui tentait d'appeler les outils lui-même (1 demande sur 3 échouait → 6/6 après correction) ; collision de noms de sauvegardes ; Chrome PDF qui ne rend pas la main ; navigation lue avant le chargement de la nouvelle page ; 25 imports inutiles ; 9 couleurs codées en dur.
 
-| # | Critère | Test exécuté | Résultat et preuve | Limite |
-|---|---|---|---|---|
-| 1 | L'application démarre | `python3 jarvis.py start` puis `status` | « démarré — 11/13 contrôles OK » (les 2 restants = Ollama et API Anthropic non configurés, attendu) | Le lanceur .app attend l'autorisation macOS d'accès à Documents (1er lancement) |
-| 2 | L'interface fonctionne | 23 pages chargées une à une dans le navigateur intégré, erreurs JS vérifiées | 23/23 affichées, 0 erreur de syntaxe (contrôle JavaScriptCore) | — |
-| 3 | Le backend fonctionne | `tests/test_api_and_tools.py::ApiTests` | 8 tests OK (jeton, hôte, origine, CSP, réglages, tâches, erreurs) | — |
-| 4 | Un fournisseur IA réel répond | `JARVIS_TEST_REEL=1 … tests.test_reel` + conversation dans l'interface | 2/2 OK ; usage enregistré `claude_code / inclus_abonnement` | consomme l'usage de l'abonnement |
-| 5 | Les erreurs sont gérées | tests outil inconnu, paramètres invalides, fichier inexistant, fournisseur indisponible | erreurs structurées (`code`, `message`, `details`), tâche conservée | — |
-| 6 | Une tâche peut être créée | `test_tache_creee_puis_annulee_via_api`, `test_dependances` | OK | — |
-| 7 | Une tâche peut être annulée | `test_annulation_arrete_reellement_la_commande` | processus tué : le fichier « fin » n'est jamais écrit | — |
-| 8 | La mémoire persiste après redémarrage | `test_memoire_persiste_apres_redemarrage` | OK | — |
-| 9 | Un fichier de test peut être créé | interface : « Crée test/bonjour.md… » + `test_action_reelle_puis_compte_rendu` | fichier écrit, relu, sha256 identique, état « Confirmé » | — |
-| 10 | Un fichier de test peut être lu | `test_ecriture_lecture_version_precedente` | OK | — |
-| 11 | Une commande autorisée fonctionne | `test_commande_autorisee` (`echo bonjour`) | code 0, sortie lue | — |
-| 12 | Une commande interdite est bloquée | `test_commandes_dangereuses_bloquees`, `test_operateurs_de_shell_refuses` | `rm`, `sudo`, `curl`, `chmod`, `osascript`, `bash`, `|`, `;`, `>`, `$()` refusés et journalisés | — |
-| 13 | Une confirmation sensible fonctionne | interface : suppression de test/bonjour.md → carte d'accord → Autoriser ; tests `test_confirmation_*` | fichier déplacé en corbeille seulement après accord ; accord à usage unique et lié aux arguments | — |
-| 14 | Le journal d'activité fonctionne | page Historique, `test_journal_expurge_les_secrets` | événements enregistrés, filtrables, exportables | — |
-| 15 | Les secrets sont protégés | tests expurgation, mémoire refusant les secrets, sauvegarde sans secret, `.env` illisible, `data/` illisible | OK ; secrets au trousseau ; crochet Git anti-secret | — |
-| 16 | Les tests principaux passent | `python3 jarvis.py test` | 64 tests, 0 échec (2 ignorés sans `JARVIS_TEST_REEL`) | — |
-| 17 | Les limites sont documentées | docs/KNOWN_LIMITATIONS.md | fait | — |
-| 18 | Le démarrage est documenté | README.md, docs/INSTALLATION.md | fait | — |
-| 19 | Arrêt propre | `python3 jarvis.py stop` (exécuté plusieurs fois) | « JARVIS arrêté proprement » ; tâches annulées, aperçus arrêtés | — |
-| 20 | Procédure de récupération | `test_sauvegarde_verifiee_et_restauration` + docs/INSTALLATION.md | restauration appliquée au redémarrage ; un bug de collision de noms de sauvegardes a été trouvé et corrigé | — |
+**Non exécutés** : test au micro (je ne peux pas parler ; la dictée Chrome est implémentée, non testée de bout en bout) ; tests Gmail/Agenda (connecteurs désactivés par défaut, à activer par Sacha) ; test e2e automatisé de l'interface (Playwright absent : vérification manuelle et scriptée à la place).
 
-## Fichiers principaux
-`jarvis.py` (lanceur) · `jarvis/app.py` · `jarvis/server.py` · `jarvis/agent/engine.py` · `jarvis/tasks.py` · `jarvis/tools/*` · `jarvis/permissions.py` · `web/js/app.js` · `web/css/tokens.css` · `tests/`.
+## C. Lancement
+- Démarrer : double-clic **JARVIS** (`~/Applications`) ou `python3 jarvis.py start` → http://127.0.0.1:8765
+- Construire : `python3 jarvis.py build` (application web locale + lanceur ; **pas d'installateur natif**)
+- Tests : `python3 jarvis.py check`
 
-## Décisions d'architecture
-Python standard + SQLite + JavaScript natif (aucune dépendance, Node absent) ; Claude Code comme moteur de texte pur (actions via le registre de JARVIS) ; Chrome en mode application ; CRM CYPHER en lecture seule. Détails : docs/ARCHITECTURE.md.
+## D. Configuration restante
+- **Clés API** : aucune nécessaire (Claude via l'abonnement). Facultatif et payant : clé API Anthropic (Sécurité > Secrets).
+- **Comptes** : activer Gmail et Google Agenda dans Applications connectées (déjà connectés à claude.ai).
+- **Permissions macOS** : accès au dossier Documents pour JARVIS.app (premier lancement) ; micro pour Chrome (voix) ; notifications d'« Éditeur de script ».
+- **Services externes** : GitHub/Netlify/Vercel non connectés (jetons absents, déploiement = paquet ZIP).
 
-## Dépendances
-Aucune à installer. Utilise : Python 3.9 (Apple), SQLite, Google Chrome, Claude Code CLI, outils macOS (`say`, `osascript`, `textutil`, `security`).
+## E. Limites connues
+Voir docs/KNOWN_LIMITATIONS.md. Principales : dictée via Google (Chrome), pas de mot d'activation, pas de téléchargement par le navigateur piloté, CRM CYPHER en lecture seule, rappels/automatisations seulement quand JARVIS est ouvert, variabilité du modèle IA.
 
-## Permissions manquantes (action de Sacha)
-1. Autoriser JARVIS.app à accéder au dossier Documents (fenêtre macOS au premier lancement).
-2. Autoriser le micro dans la fenêtre JARVIS au premier usage de la dictée.
-3. Facultatif : activer Gmail et Google Agenda dans Applications connectées (un clic + confirmation).
-4. Facultatif : autoriser les notifications d'« Éditeur de script ».
-
-## Problèmes connus
-Voir docs/KNOWN_LIMITATIONS.md. Aucun test en échec.
-
-## Prochaines étapes exactes
-Voir NEXT_STEPS.md.
+## F. État par fonctionnalité
+| Fonctionnalité | État | Preuve |
+|---|---|---|
+| Démarrage, arrêt propre, lancement à froid | opérationnelle | `start`/`stop`/`status` exécutés |
+| Interface (23 espaces) | opérationnelle | 23/23 pages, captures d'écran |
+| Conversation (Claude réel) | opérationnelle | tests réels 3/3 |
+| Orchestrateur de tâches (dépendances, pause, reprise, annulation, redémarrage) | opérationnelle | test_agent, test_reel |
+| Outils fichiers / terminal / documents (pdf, docx, xlsx…) | opérationnelle | test_security, test_api_and_tools |
+| Permissions et confirmations | opérationnelle | tests + suppression réelle avec accord dans l'interface |
+| Mémoire durable (contradictions, temporaire, export) | opérationnelle | test_core |
+| Projets, rappels, planning, automatisations | opérationnelle | test_core, test_api_and_tools |
+| Recherche web, lecture, audit de site | opérationnelle | utilisée en réel (DuckDuckGo) |
+| Navigateur piloté (JS, formulaires avec accord, captures) | opérationnelle | BrowserTests (réseau) |
+| Création et contrôle de sites, aperçu, paquet | opérationnelle | test_controle_de_site, test_apercu |
+| Journal, historique, diagnostic copiable | opérationnelle | test_v02, page Diagnostic |
+| Sauvegarde / restauration / migrations | opérationnelle | test_core (base v0.1 migrée) + base réelle |
+| Repli IA (modèle, fournisseur) | opérationnelle (testée avec fournisseurs de test) | test_repli |
+| Synthèse vocale | opérationnelle | voix testée (`say`) |
+| Dictée vocale | **non testée** | implémentée (Chrome) ; nécessite le micro de Sacha |
+| Mot d'activation | **non implémentée** | — |
+| Gmail / Google Agenda | **non configurée** | connecteurs prêts, désactivés ; test via bouton Tester |
+| Ollama / API Anthropic | **non configurée** | indisponibles, état affiché |
+| GitHub / Netlify / Vercel | **non configurée** | jetons absents |
+| Lanceur JARVIS.app | **partielle** | créé ; premier lancement en attente de l'autorisation macOS « Documents » |

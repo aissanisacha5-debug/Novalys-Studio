@@ -15,7 +15,9 @@ class CoreTests(unittest.TestCase):
         self.env.close()
 
     def test_migrations_et_schema(self):
-        self.assertEqual(self.app.db.schema_version(), "0001_init")
+        self.assertEqual(self.app.db.schema_version(), "0002_complements")
+        cols = [r["name"] for r in self.app.db.all("PRAGMA table_info(tasks)")]
+        self.assertIn("next_action", cols)
         self.assertEqual(self.app.db.one("PRAGMA integrity_check")["integrity_check"], "ok")
 
     def test_memoire_persiste_apres_redemarrage(self):
@@ -47,6 +49,44 @@ class CoreTests(unittest.TestCase):
         ev = self.app.logbook.log("test", "token: abcdefghijklmnopqrstuvwxyz123456")
         row = self.app.db.one("SELECT message FROM events WHERE id=?", (ev["id"],))
         self.assertNotIn("abcdefghijklmnopqrstuvwxyz123456", row["message"])
+
+    def test_migration_d_une_base_v01_avec_sauvegarde(self):
+        import sqlite3
+        from jarvis import paths
+        self.app.shutdown()
+        self.app.db.close()
+        self.app = None
+        for ext in ("", "-wal", "-shm"):
+            p = paths.db_path().with_name(paths.db_path().name + ext)
+            if p.exists():
+                p.unlink()
+        # base telle que livrée en v0.1 : seulement 0001, avec une donnée
+        c = sqlite3.connect(str(paths.db_path()))
+        c.executescript((paths.MIGRATIONS_DIR / "0001_init.sql").read_text(encoding="utf-8"))
+        c.execute("CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)")
+        c.execute("INSERT INTO schema_migrations VALUES ('0001_init', '2026-10-12')")
+        c.execute("INSERT INTO memories(type, nature, content, source, status, created_at, updated_at) "
+                  "VALUES ('connaissance','fait','Donnée de la v0.1.','test','valide','2026-10-12','2026-10-12')")
+        c.commit()
+        c.close()
+        app = self.env.make_app()
+        self.app = app
+        self.assertEqual(app.migrations, ["0002_complements"])
+        self.assertEqual(app.memory.search("v0.1")[0]["content"], "Donnée de la v0.1.")
+        self.assertTrue(list(paths.backups_dir().glob("*avant-migration*")))
+
+    def test_memoire_temporaire_expire(self):
+        m = self.app.memory.add("Code d'accès du parking visiteurs B2 aujourd'hui.", "temporaire", expires_at="2000-01-01T00:00:00")
+        self.assertEqual(self.app.memory.search("parking"), [])
+        self.assertEqual(self.app.memory.purge_expired(), 1)
+        t = self.app.memory.add("Rendez-vous chez Da Marco reporté à jeudi.", "temporaire")
+        self.assertTrue(t["expires_at"])
+
+    def test_memoire_contradiction_signalee(self):
+        self.app.memory.add("Le restaurant Da Marco ferme le lundi.", "connaissance")
+        m = self.app.memory.add("Le restaurant Da Marco ferme le mardi.", "connaissance")
+        self.assertEqual(m["status"], "a_verifier")
+        self.assertEqual(len(m["possible_conflicts"]), 1)
 
     def test_memoire_refuse_les_secrets(self):
         with self.assertRaises(ValidationError):

@@ -37,6 +37,11 @@
   --err: var(--danger);
   --err-soft: rgba(255, 93, 104, 0.10);
   --wait-soft: rgba(244, 184, 96, 0.10);
+  --on-accent: #032118;          /* texte sur bouton émeraude */
+  --code-bg: #050707;            /* fond des blocs de code et sorties */
+  --code-text: #B9C7C2;
+  --code-text-strong: #C9D6D2;
+  --err-text: #FFC6CA;           /* texte dans un encadré d'erreur */
 
   /* Typographie : polices système (aucune dépendance) */
   --font: -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;

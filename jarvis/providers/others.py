@@ -7,10 +7,9 @@ Aucun modèle local n'est lancé automatiquement.
 from __future__ import annotations
 
 import json
-import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from ..errors import ProviderError
 from .base import Completion, Provider

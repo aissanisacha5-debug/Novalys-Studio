@@ -1,6 +1,6 @@
 // Navigateur : recherche web publique, lecture de pages, audit de site, vérification de liens, sources consultées.
 import { get, post } from "../api.js";
-import { btn, el, errorBox, input, loading, status, when } from "../ui.js";
+import { btn, el, errorBox, input, loading, status, toast, when } from "../ui.js";
 import { quickAsk } from "../app.js";
 
 const tool = (id, args) => post(`/api/tools/${id}/invoke`, { args });
@@ -12,7 +12,21 @@ export async function render(view, params, app) {
     const v = q.value.trim(); if (!v) return;
     out.replaceChildren(loading(/^https?:\/\//.test(v) ? "Lecture de la page…" : "Recherche…"));
     try {
-      if (/^https?:\/\//.test(v)) {
+      if (/^https?:\/\//.test(v) && rendered.checked) {
+        const r = await tool("navigateur_ouvrir", { url: v, max_chars: 20000 });
+        const p = r.result;
+        out.replaceChildren(el("div", { class: "panel" },
+          el("div", { class: "state-line" }, status(r.state), "navigateur piloté (rendu JavaScript, profil séparé)", `consulté ${when(p.consulted_at)}`),
+          el("h3", {}, p.title || p.url),
+          el("div", { style: { display: "flex", gap: "8px", margin: "8px 0", flexWrap: "wrap" } },
+            btn("Capture d'écran", async () => { const c = await tool("navigateur_capture", {}); toast(`Capture enregistrée : ${c.result.path}`); }, { cls: "sm" }),
+            btn("Fermer le navigateur piloté", async () => { await tool("navigateur_fermer", {}); toast("Navigateur piloté fermé."); }, { cls: "sm ghost" })),
+          p.fields.length ? [el("h3", {}, `Champs de formulaire (${p.fields.length})`),
+            el("table", { class: "table" }, el("tbody", {}, ...p.fields.map((f) => el("tr", {}, el("td", { class: "mono" }, f.selector || "—"), el("td", { class: "small" }, f.label), el("td", { class: "small faint" }, f.type),
+              el("td", {}, f.sensible ? el("span", { class: "badge err" }, "sensible : jamais rempli par JARVIS") : null))))),
+            el("p", { class: "small faint" }, "Demandez à JARVIS de remplir ces champs : il les remplit et vérifie les valeurs ; l'envoi du formulaire demande toujours votre accord.")] : null,
+          el("pre", { class: "out" }, p.content.replace(/<<<.*?>>>/g, "").trim())));
+      } else if (/^https?:\/\//.test(v)) {
         const r = await tool("web_lire_page", { url: v, max_chars: 20000 });
         const p = r.result;
         out.replaceChildren(el("div", { class: "panel" },
@@ -50,8 +64,9 @@ export async function render(view, params, app) {
     } catch (e) { out.replaceChildren(errorBox(e)); }
   };
   q.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  const rendered = el("input", { type: "checkbox" });
   const sources = el("div");
-  view.append(el("div", { class: "page" }, el("div", { class: "toolbar" }, q, btn("Aller", go, { cls: "primary" })),
+  view.append(el("div", { class: "page" }, el("div", { class: "toolbar" }, q, btn("Aller", go, { cls: "primary" }), el("label", { class: "switch small" }, rendered, "Rendu JavaScript (navigateur piloté)")),
     el("p", { class: "small faint" }, "Pages publiques uniquement. Les adresses locales sont refusées ; aucun CAPTCHA ni connexion n'est contourné. Le contenu des pages est traité comme une donnée non fiable."),
     out, el("h3", {}, "Sources récemment consultées"), sources));
   try {

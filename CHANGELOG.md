@@ -1,5 +1,16 @@
 # Journal des versions
 
+## 0.2.0 — 2026-10-12 (prompt 3)
+- Navigateur piloté (Chrome sans interface, protocole DevTools) : pages JavaScript, champs, remplissage vérifié, liens, captures ; envoi de formulaire avec accord ; champs sensibles refusés.
+- Moteur : état final recoupé avec les étapes réelles (partiel / non vérifié / échoué), prochaine action, lectures en parallèle.
+- Mémoire : informations temporaires avec expiration, détection de contradictions (« à vérifier »).
+- IA : fournisseur de remplacement, modèle par agent, chaîne de repli journalisée.
+- Diagnostic : versions, migrations, navigateur ; rapport copiable expurgé.
+- Outillage : `verifier` (syntaxe 3.9, imports, JS, CSS, secrets), `check`, `deps`, `dev`, `demo` (données fictives séparées), `build`.
+- Migration 0002 (testée sur une base v0.1 et appliquée à la base réelle avec sauvegarde).
+- Design : couleurs du noyau lues dans les jetons ; plus aucune couleur codée en dur hors de tokens.css.
+- 76 tests (73 hors ligne dont 2 de navigateur réseau, 3 avec Claude réel).
+
 ## 0.1.0 — 2026-10-12
 Première version fonctionnelle.
 - Socle : API locale (127.0.0.1, jeton, contrôle hôte/origine), SQLite + migrations versionnées, configuration versionnée, journal expurgé, flux temps réel.

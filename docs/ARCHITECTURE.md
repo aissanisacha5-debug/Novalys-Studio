@@ -1,4 +1,4 @@
-# Architecture de JARVIS v0.1
+# Architecture de JARVIS v0.2
 
 ## Choix et raisons
 
@@ -8,6 +8,8 @@
 | Base | **Un seul fichier SQLite** (WAL, FTS5), migrations versionnées | Suffisant pour un utilisateur ; recherche plein texte intégrée. Pas de serveur de base. |
 | Interface | HTML + CSS + modules JavaScript natifs, servis par le backend | Pas d'étape de compilation ; rapide ; un seul processus. React/Vite écartés (Node absent). |
 | Fenêtre | Chrome en mode application (`--app`, profil séparé) | Fenêtre dédiée sans barre d'adresse + reconnaissance vocale du navigateur. Repli : navigateur par défaut. |
+| Navigateur piloté | Chrome sans interface + protocole DevTools (client WebSocket maison) | Pages rendues en JavaScript, formulaires ; Playwright écarté (Node absent). |
+| Qualité | `scripts/verifier.py` (ast, JavaScriptCore, CSS, secrets) + `unittest` | Aucun outil à installer ; ruff/mypy/eslint écartés (pip/Node non nécessaires pour ce volume). |
 | Temps réel | Server-Sent Events (`/api/stream`) | Le noyau visuel et le rail reflètent les événements réels du backend. |
 | IA | Couche fournisseurs : **Claude Code CLI** (actif), Ollama, API Anthropic | Seul accès réellement disponible sans frais : `claude -p` utilisé comme moteur de texte pur (aucun outil Claude Code). |
 | Secrets | Trousseau macOS (`security`) | Jamais en base, journal, conversation, sauvegarde ni code. |
@@ -26,6 +28,7 @@ jarvis/
   tools/files.py          fichiers et dossiers (9.1)
   tools/shell.py          exécuteur de commandes contrôlé, tests, serveurs d'aperçu (10)
   tools/web.py            recherche, lecture de pages, liens, audit de site (11)
+  tools/browser.py        navigateur piloté : ouvrir, remplir, suivre un lien, envoyer (accord), capture
   tools/sites.py          contrôle qualité de site, paquet de déploiement (15)
   tools/documents.py      md, txt, html, json, csv, xlsx, docx, pdf (22)
   tools/data_tools.py     tâches, mémoire, projets, rappels, rapports, e-mails, agenda, Mac, agence, délégation
@@ -54,6 +57,9 @@ Les numéros renvoient aux 14 couches de la partie 4.
 4. Chaque action passe par le registre : outil existant → disponible → arguments valides → risque autorisé par le mode → confirmation si risque élevé → exécution avec délai → **vérification** (relecture, sha256, code de sortie, HTTP, intégrité ZIP/PDF/OpenXML…) → journal.
 5. Les résultats (données non fiables, balisées) sont renvoyés au modèle au tour suivant ; il conclut avec un état honnête.
 6. Limites : tours max, durée max, échecs successifs, détection de boucle, action identique non répétée, limite d'appels IA par jour.
+7. **État final recoupé** : l'affirmation du modèle est confrontée aux étapes réelles (succès sans vérification → « non vérifié » ; succès malgré un échec → « partiel » ; tout en échec → « échoué »). Une **prochaine action** est conservée avec la tâche.
+8. Lectures indépendantes d'un même tour exécutées **en parallèle** (4 au plus) ; les écritures restent séquentielles avec verrous de fichiers.
+9. IA : chaîne de repli explicite (modèle par agent → modèle principal → modèle de remplacement → fournisseur de remplacement), seuls les fournisseurs disponibles sont essayés.
 
 ## Sécurité (résumé, détail dans SECURITY.md)
 
@@ -64,6 +70,6 @@ Les numéros renvoient aux 14 couches de la partie 4.
 
 ## Versions
 
-- Schéma : `schema_migrations` (actuel `0001_init`) ; sauvegarde automatique avant migration.
+- Schéma : `schema_migrations` (actuel `0002_complements`) ; sauvegarde automatique avant migration (vérifiée sur la base réelle le 2026-10-12).
 - Configuration : `config_versions` (chaque modification, restaurable) ; `CONFIG_SCHEMA_VERSION = 1`.
 - Outils : champ `version` par outil. Plugins : manifeste `plugin.json` (outils déclarés, risque maximal).

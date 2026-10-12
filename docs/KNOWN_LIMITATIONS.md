@@ -1,4 +1,4 @@
-# Limites connues (v0.1, 2026-10-12)
+# Limites connues (v0.2, 2026-10-12)
 
 Rien n'est caché : chaque limite est visible aussi dans l'interface (« indisponible », « non vérifié »).
 
@@ -20,8 +20,9 @@ Rien n'est caché : chaque limite est visible aussi dans l'interface (« indispo
 - Rappels et automatisations : ne tournent que lorsque JARVIS est ouvert (pas de lancement au démarrage du Mac sans votre accord).
 
 ## Navigateur
-- Lecture HTTP simple : les sites qui exigent JavaScript pour afficher leur contenu sont mal lus. Playwright n'est pas installé (Node absent).
-- Pas de remplissage de formulaires ni de téléchargement automatisés en v0.1.
+- Navigateur piloté (Chrome sans interface) : pages JavaScript, formulaires, liens, captures — **opérationnel** (testé sur httpbin.org). Profil vierge : pas d'accès aux sites où Sacha est connecté (volontaire).
+- Téléchargement de fichiers par le navigateur : **non implémenté**.
+- Sélecteurs CSS fournis par le modèle : peuvent échouer sur des sites complexes (erreur claire, rien n'est envoyé sans accord).
 - Recherche : page publique DuckDuckGo ; si elle demande une vérification humaine, JARVIS s'arrête et le dit.
 
 ## Connecteurs
@@ -32,6 +33,10 @@ Rien n'est caché : chaque limite est visible aussi dans l'interface (« indispo
 ## Agence
 - Le CRM vient de CYPHER en **lecture seule** ; la modification des prospects, offres et prix reste dans CYPHER (règle de validation par Sacha).
 - Revenus « confirmés » = factures marquées payées dans CYPHER ; tout le reste est une prévision.
+
+## Tests
+- Tests réels : un défaut a été trouvé grâce à eux (avec le modèle haiku, environ 1 demande sur 3 échouait : le modèle tentait d'appeler les outils lui-même au lieu de les écrire dans sa réponse). Correction du prompt système, puis 6 essais sur 6 réussis. Le comportement d'un modèle reste variable ; le moteur signale honnêtement un échec (le test vérifie le fichier, pas la parole du modèle).
+- Pas de test end-to-end automatisé de l'interface (Playwright absent) : l'interface a été vérifiée dans un navigateur réel, page par page, à la main et par script.
 
 ## Divers
 - Une seule personne, un seul Mac ; pas d'accès distant ni mobile (prévu dans la feuille de route, avec authentification forte).

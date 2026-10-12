@@ -160,10 +160,15 @@ class TaskManager:
         self.app.db.execute("UPDATE tasks SET status=?, updated_at=? WHERE id=?", (status, now(), tid))
         self._publish(tid)
 
-    def finish(self, tid: int, status: str, message: str, result_state: str, error: Optional[str] = None) -> Dict[str, Any]:
+    def finish(self, tid: int, status: str, message: str, result_state: str, error: Optional[str] = None,
+               next_action: Optional[str] = None) -> Dict[str, Any]:
         app = self.app
-        app.db.execute("UPDATE tasks SET status=?, result=?, result_state=?, error=?, finished_at=?, updated_at=? WHERE id=?",
-                       (status, message, result_state, error, now(), now(), tid))
+        if next_action is None and status in ("bloquee", "echouee", "interrompue", "annulee"):
+            next_action = {"bloquee": "Lire le blocage, puis reprendre la tâche ou la reformuler.",
+                           "echouee": "Consulter l'erreur (Diagnostic) puis relancer.",
+                           "annulee": None}.get(status)
+        app.db.execute("UPDATE tasks SET status=?, result=?, result_state=?, error=?, next_action=?, finished_at=?, updated_at=? WHERE id=?",
+                       (status, message, result_state, error, next_action, now(), now(), tid))
         self.release_locks(tid)
         t = self.get(tid)
         level = {"terminee": "succes", "echouee": "erreur", "bloquee": "attention", "annulee": "info"}.get(status, "info")
@@ -172,7 +177,8 @@ class TaskManager:
         if t.get("conversation_id") and t["kind"] in ("conversation", "agent"):
             tools_used = app.db.one("SELECT count(*) AS n FROM task_steps WHERE task_id=? AND kind='outil' AND status='termine'", (tid,))["n"]
             app.conversations.add_message(t["conversation_id"], "assistant", message,
-                                          {"task_id": tid, "status": status, "result_state": result_state, "tools_used": tools_used})
+                                          {"task_id": tid, "status": status, "result_state": result_state, "tools_used": tools_used,
+                                           "next_action": next_action})
             app.bus.publish({"type": "message", "conversation_id": t["conversation_id"], "task_id": tid})
             if app.settings.get("voice.auto_speak") and status in ("terminee", "attente_reponse", "bloquee", "echouee"):
                 try:
@@ -279,6 +285,7 @@ class TaskManager:
         rows = self.app.db.all("SELECT id FROM tasks WHERE status='en_cours'")
         for r in rows:
             self.app.db.execute("UPDATE tasks SET status='interrompue', updated_at=? WHERE id=?", (now(), r["id"]))
+            self.app.db.execute("UPDATE tasks SET next_action='Reprendre la tâche (les étapes déjà faites ne sont pas refaites).' WHERE id=?", (r["id"],))
             self.app.logbook.log("tache_interrompue", f"Tâche #{r['id']} interrompue par un redémarrage : reprise possible.",
                                  "attention", r["id"])
         return len(rows)

@@ -1,7 +1,7 @@
 // Centre de tâches : liste filtrée, création (manuelle ou exécutée par un agent), détail avec étapes réelles,
 // pause / reprise / annulation, confirmations, sources consultées, consommation.
 import { get, post } from "../api.js";
-import { btn, clear, confirmCard, el, empty, errorBox, field, input, loading, md, modal, select, status, textarea, when } from "../ui.js";
+import { btn, confirmCard, el, empty, errorBox, field, input, loading, md, modal, select, status, textarea, when } from "../ui.js";
 
 const FILTERS = [["ouvertes", "Ouvertes"], ["en_cours", "En cours"], ["attente_autorisation", "À valider"], ["terminee", "Terminées"], ["echouee", "Échouées"], ["bloquee", "Bloquées"], ["annulee", "Annulées"], ["", "Toutes"]];
 
@@ -76,6 +76,7 @@ async function detail(view, id, app) {
       el("dl", { class: "kv" }, el("dt", {}, "Objectif"), el("dd", {}, t.objective), el("dt", {}, "Priorité"), el("dd", {}, String(t.priority)),
         el("dt", {}, "Limites"), el("dd", {}, `${t.max_steps} tours, ${t.max_seconds} s, ${t.max_retries} nouvelles tentatives`),
         t.depends_on.length ? [el("dt", {}, "Dépend de"), el("dd", {}, t.depends_on.map((d) => `#${d}`).join(", "))] : null,
+        t.next_action ? [el("dt", {}, "Prochaine action"), el("dd", { class: "rare" }, t.next_action)] : null,
         el("dt", {}, "Créée"), el("dd", {}, when(t.created_at)), t.finished_at ? [el("dt", {}, "Terminée"), el("dd", {}, when(t.finished_at))] : null),
       ...pending.map((c) => el("div", { style: { marginTop: "16px" } }, confirmCard(c, load))),
       t.result ? [el("h3", {}, "Compte rendu"), el("div", { class: "panel" }, md(t.result))] : null,

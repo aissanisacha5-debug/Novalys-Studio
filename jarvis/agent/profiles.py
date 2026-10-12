@@ -42,7 +42,8 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "navigateur": {
         "label": "Agent navigateur",
         "mission": "Lire des pages, vérifier des liens, auditer des sites publics.",
-        "tools": ["web_lire_page", "web_verifier_liens", "site_auditer", "web_rechercher"],
+        "tools": ["web_lire_page", "web_verifier_liens", "site_auditer", "web_rechercher", "navigateur_ouvrir", "navigateur_remplir",
+                  "navigateur_suivre_lien", "navigateur_envoyer_formulaire", "navigateur_capture", "navigateur_fermer"],
         "max_steps": 10,
         "output": "Constats mesurés par page.",
         "success": "Pages réellement consultées.",
@@ -92,7 +93,7 @@ PROFILES: Dict[str, Dict[str, Any]] = {
     "prospection": {
         "label": "Agent de prospection",
         "mission": "Trouver des entreprises, auditer leurs sites publics, qualifier, préparer des brouillons (jamais d'envoi).",
-        "tools": ["web_rechercher", "web_lire_page", "site_auditer", "agence_consulter", "document_creer",
+        "tools": ["web_rechercher", "web_lire_page", "navigateur_ouvrir", "site_auditer", "agence_consulter", "document_creer",
                   "email_brouillon_preparer", "rapport_produire", "memoire_rechercher"],
         "max_steps": 20,
         "output": "Prospects qualifiés avec sources, doublons écartés, brouillons préparés.",

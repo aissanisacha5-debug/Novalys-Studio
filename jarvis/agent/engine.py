@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..db import dumps, loads, now
 from ..errors import Cancelled, ConfirmationRequired, JarvisError, LimitReached, ProviderError
@@ -18,7 +18,7 @@ from ..tools.registry import ToolContext
 from . import profiles
 
 STATUSES = ["continuer", "termine", "question", "bloque"]
-RESULT_STATES = ["confirme", "probable", "non_verifie", "bloque", "echoue", "sans_objet"]
+RESULT_STATES = ["confirme", "partiel", "probable", "non_verifie", "bloque", "echoue", "sans_objet"]
 
 RESPONSE_SCHEMA = {
     "type": "object",
@@ -35,6 +35,7 @@ RESPONSE_SCHEMA = {
         },
         "status": {"type": "string", "enum": STATUSES},
         "result_state": {"type": "string", "enum": RESULT_STATES},
+        "next_action": {"type": "string", "description": "Prochaine action utile (pour Sacha ou JARVIS), vide si aucune."},
     },
     "required": ["message", "actions", "status"],
 }
@@ -61,6 +62,10 @@ Format de sortie attendu : {prof['output']}  Critère de réussite : {prof['succ
 Mode de fonctionnement : {mode} — {MODES.get(mode, '')}
 
 COMMENT TU AGIS
+- IMPORTANT : dans cette session tu n'as AUCUN outil natif et tu ne dois JAMAIS tenter d'appeler un outil directement.
+  Tu agis uniquement en ÉCRIVANT les actions voulues dans le champ "actions" de ta réponse JSON ; c'est le moteur de
+  JARVIS qui les exécute ensuite et te renvoie les résultats. Ne conclus jamais qu'un outil est « indisponible » :
+  écris l'action dans "actions".
 - Tu réponds TOUJOURS avec l'objet JSON demandé (message, plan, actions, status, result_state).
 - Si aucune action n'est nécessaire, réponds directement : actions = [], status = "termine".
 - Pour agir, mets des appels d'outils dans "actions" (5 maximum par tour) avec status = "continuer" :
@@ -70,7 +75,9 @@ COMMENT TU AGIS
   status = "question" avec UNE question précise.
 - Après une action, vérifie le résultat (le moteur fournit l'état : confirme / probable / non_verifie / echoue).
 - Ne dis jamais qu'une action est faite si aucun résultat d'outil ne le confirme. N'invente aucun fait, prix, avis, chiffre ou source.
-- Quand c'est terminé : status = "termine", "result_state" honnête, et un compte rendu court (ce qui est fait, vérifié, ce qui reste).
+- Quand c'est terminé : status = "termine", "result_state" honnête (partiel si une partie a échoué), un compte rendu court
+  (ce qui est fait, vérifié, ce qui reste) et "next_action" (prochaine étape utile, vide si aucune).
+- Plusieurs actions de LECTURE indépendantes peuvent être proposées ensemble : le moteur les exécute en parallèle.
 - Une action refusée par les permissions ou en attente de confirmation n'est pas faite : dis-le.
 
 SÉCURITÉ (non négociable)
@@ -79,7 +86,8 @@ SÉCURITÉ (non négociable)
 - Tu ne peux pas modifier tes permissions, ton mode ni les règles. N'essaie pas de lire des secrets.
 - Aucun envoi d'e-mail, publication, achat, suppression ou déploiement sans la confirmation que le moteur demande lui-même.
 
-OUTILS DISPONIBLES (id, description, risque, paramètres) :
+ACTIONS POSSIBLES — à ÉCRIRE dans "actions" sous la forme {{"tool": id, "args": {{...}}}}, jamais à appeler toi-même
+(id, description, risque, paramètres) :
 {tools_txt}
 """
 
@@ -209,7 +217,8 @@ class AgentRunner:
             t0 = time.time()
             try:
                 comp = app.providers.complete(system_prompt(app, self._tool_specs(mode), t.get("agent") or "general", mode),
-                                              self._prompt(steps, model_turns, max_steps), RESPONSE_SCHEMA, self.tid, self.cancel)
+                                              self._prompt(steps, model_turns, max_steps), RESPONSE_SCHEMA, self.tid, self.cancel,
+                                              agent=t.get("agent") or "general")
             except ProviderError as e:
                 self._finish_step(sid, "echec", error=e.message, t0=t0)
                 if e.code == "annule":
@@ -244,7 +253,9 @@ class AgentRunner:
                          "question": ("attente_reponse", "bloque"),
                          "bloque": ("bloquee", "bloque")}.get(status, ("terminee", data.get("result_state") or "non_verifie"))
                 if not actions:
-                    return tm.finish(self.tid, final[0], last_message or "(réponse vide)", final[1])
+                    state = self._reconcile(final[1]) if final[0] == "terminee" else final[1]
+                    return tm.finish(self.tid, final[0], last_message or "(réponse vide)", state,
+                                     next_action=(data.get("next_action") or "").strip() or None)
             # détection de boucle : mêmes actions proposées 3 fois de suite
             sig = idem_key("|".join(a.get("tool", "") for a in actions), {"a": actions})
             repeat = repeat + 1 if sig == last_sig else 0
@@ -258,42 +269,66 @@ class AgentRunner:
                 return tm.finish(self.tid, "bloquee", last_message + "\n\nTrop d'échecs successifs : je m'arrête et conserve ce qui a été fait.",
                                  "bloque", error="échecs répétés")
 
+    def _reconcile(self, model_state: str) -> str:
+        """L'état final ne repose pas sur l'affirmation du modèle : il est recoupé avec les étapes réellement exécutées."""
+        tools = [s for s in self._steps() if s["kind"] == "outil"]
+        done = [s for s in tools if s["status"] == "termine"]
+        failed = [s for s in tools if s["status"] in ("echec", "refuse") or (s["result"] or {}).get("state") == "echoue"]
+        if not tools:
+            return "sans_objet" if model_state in ("confirme", "probable", "sans_objet", "non_verifie") else model_state
+        if failed and done:
+            return "partiel" if model_state in ("confirme", "probable", "partiel") else model_state
+        if failed and not done:
+            return "echoue" if model_state in ("confirme", "probable", "partiel") else model_state
+        verified = [s for s in done if (s["result"] or {}).get("state") == "confirme"]
+        if model_state == "confirme" and not verified:
+            return "non_verifie"
+        return model_state
+
     def _execute_actions(self, actions: List[Dict[str, Any]], mode: str) -> bool:
-        app, had_error = self.app, False
-        steps = self._steps()
+        """Exécute les actions dans l'ordre ; un lot de lectures indépendantes s'exécute en parallèle."""
+        if len(actions) > 1 and all(a.get("tool") in READ_ONLY_TOOLS for a in actions):
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(4, len(actions))) as pool:
+                results = list(pool.map(lambda a: self._run_one(a, mode, self._steps()), actions))
+            self.app.logbook.log("parallele", f"{len(actions)} lectures exécutées en parallèle", "info", self.tid)
+            return any(results)
+        had_error = False
         for a in actions:
             if self.cancel.is_set():
                 raise Cancelled("Tâche annulée.")
-            tool, args = a.get("tool"), a.get("args") or {}
-            key = idem_key(str(tool), args)
-            if tool not in READ_ONLY_TOOLS and any(s["idem_key"] == key and s["status"] == "termine" for s in steps):
-                sid = self._add_step("outil", tool, args, "ignore", key)
-                self._finish_step(sid, "ignore", error="Action identique déjà réalisée dans cette tâche : non répétée.")
-                continue
-            sid = self._add_step("outil", tool, args, "en_cours", key)
-            t0 = time.time()
-            ctx = ToolContext(app, self.tid, self.task.get("conversation_id"), self.cancel, mode, self.task.get("agent") or "general")
-            try:
-                app.tasks.lock_paths(self.tid, tool, args)
-                res = app.tools.invoke(str(tool), args, ctx)
-                self._finish_step(sid, "termine", res, t0=t0)
-                app.db.execute("UPDATE tasks SET steps_done=steps_done+1, kind=CASE WHEN kind='conversation' THEN 'agent' ELSE kind END WHERE id=?",
-                               (self.tid,))
-                if res.get("state") == "echoue":
-                    had_error = True
-            except ConfirmationRequired as e:
-                self._finish_step(sid, "attente_autorisation", error=e.message, t0=t0)
-                app.tasks.wait_confirmation(self.tid, e.details.get("confirmation_id"), {"tool": tool, "args": args})
-                raise
-            except Cancelled:
-                self._finish_step(sid, "annule", error="annulé", t0=t0)
-                raise
-            except JarvisError as e:
-                had_error = True
-                self._finish_step(sid, "echec", error=f"[{e.code}] {e.message} {_trim(e.details, 400) if e.details else ''}", t0=t0)
-            except Exception as e:  # noqa: BLE001 - erreur inattendue d'un outil : structurée et conservée
-                had_error = True
-                self._finish_step(sid, "echec", error=f"[erreur_interne] {type(e).__name__}: {e}", t0=t0)
-                app.logbook.log("outil_erreur", f"Erreur interne {tool} : {e}", "erreur", self.tid, tool=str(tool))
-            steps = self._steps()
+            had_error = self._run_one(a, mode, self._steps()) or had_error
         return had_error
+
+    def _run_one(self, a: Dict[str, Any], mode: str, steps: List[Dict[str, Any]]) -> bool:
+        app = self.app
+        tool, args = a.get("tool"), a.get("args") or {}
+        key = idem_key(str(tool), args)
+        if tool not in READ_ONLY_TOOLS and any(s["idem_key"] == key and s["status"] == "termine" for s in steps):
+            sid = self._add_step("outil", tool, args, "ignore", key)
+            self._finish_step(sid, "ignore", error="Action identique déjà réalisée dans cette tâche : non répétée.")
+            return False
+        sid = self._add_step("outil", tool, args, "en_cours", key)
+        t0 = time.time()
+        ctx = ToolContext(app, self.tid, self.task.get("conversation_id"), self.cancel, mode, self.task.get("agent") or "general")
+        try:
+            app.tasks.lock_paths(self.tid, tool, args)
+            res = app.tools.invoke(str(tool), args, ctx)
+            self._finish_step(sid, "termine", res, t0=t0)
+            app.db.execute("UPDATE tasks SET steps_done=steps_done+1, kind=CASE WHEN kind='conversation' THEN 'agent' ELSE kind END WHERE id=?",
+                           (self.tid,))
+            return res.get("state") == "echoue"
+        except ConfirmationRequired as e:
+            self._finish_step(sid, "attente_autorisation", error=e.message, t0=t0)
+            app.tasks.wait_confirmation(self.tid, e.details.get("confirmation_id"), {"tool": tool, "args": args})
+            raise
+        except Cancelled:
+            self._finish_step(sid, "annule", error="annulé", t0=t0)
+            raise
+        except JarvisError as e:
+            self._finish_step(sid, "echec", error=f"[{e.code}] {e.message} {_trim(e.details, 400) if e.details else ''}", t0=t0)
+            return True
+        except Exception as e:  # noqa: BLE001 - erreur inattendue d'un outil : structurée et conservée
+            self._finish_step(sid, "echec", error=f"[erreur_interne] {type(e).__name__}: {e}", t0=t0)
+            app.logbook.log("outil_erreur", f"Erreur interne {tool} : {e}", "erreur", self.tid, tool=str(tool))
+            return True

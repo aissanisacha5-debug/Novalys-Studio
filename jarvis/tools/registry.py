@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from ..errors import (Cancelled, ConfirmationRequired, JarvisError, NotFound, PermissionDenied, ToolUnavailable,
+from ..errors import (Cancelled, JarvisError, NotFound, PermissionDenied, ToolUnavailable,
                       ValidationError)
 from ..permissions import raise_confirmation
 

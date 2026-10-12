@@ -85,35 +85,50 @@ class ProviderManager:
             if spent >= monthly and s.get("budget.stop_on_exceed", True):
                 raise LimitReached(f"Budget mensuel atteint ({spent:.2f} / {monthly:.2f} $).")
 
-    def complete(self, system: str, prompt: str, json_schema: Optional[Dict[str, Any]] = None, task_id: Optional[int] = None,
-                 cancel_event=None, model: Optional[str] = None) -> Completion:
+    def plan(self, model: Optional[str] = None, agent: Optional[str] = None) -> List[Tuple[Provider, Optional[str]]]:
+        """Stratégie de repli explicite : (fournisseur principal, modèle de l'agent ou principal) → (principal, modèle de
+        remplacement) → (fournisseur de remplacement, son modèle) ; seuls les fournisseurs disponibles sont retenus."""
         s = self.app.settings
-        pid = s.get("ai.provider", "claude_code")
-        p = self.providers.get(pid)
-        if not p:
-            raise ProviderError(f"Fournisseur IA inconnu : {pid}.")
-        ok, why = p.available()
-        if not ok:
-            raise ProviderError(f"Fournisseur IA « {p.label} » indisponible : {why}", {"provider": pid}, code="fournisseur_indisponible")
-        self._check_budget()
-        models = [model or s.get("ai.model")]
+        chain: List[Tuple[Provider, Optional[str]]] = []
+        main = self.providers.get(s.get("ai.provider", "claude_code"))
+        if not main:
+            raise ProviderError(f"Fournisseur IA inconnu : {s.get('ai.provider')}.")
+        first = model or (s.get("ai.models_by_agent") or {}).get(agent or "") or s.get("ai.model")
+        chain.append((main, first))
         fb = s.get("ai.fallback_model")
-        if fb and fb not in models:
-            models.append(fb)
+        if fb and fb != first:
+            chain.append((main, fb))
+        alt = self.providers.get(s.get("ai.fallback_provider") or "")
+        if alt and alt is not main:
+            chain.append((alt, s.get("ai.fallback_provider_model") or None))
+        return chain
+
+    def complete(self, system: str, prompt: str, json_schema: Optional[Dict[str, Any]] = None, task_id: Optional[int] = None,
+                 cancel_event=None, model: Optional[str] = None, agent: Optional[str] = None) -> Completion:
+        s = self.app.settings
+        chain = self.plan(model, agent)
+        available = [(p, m) for p, m in chain if p.available()[0]]
+        if not available:
+            p = chain[0][0]
+            raise ProviderError(f"Fournisseur IA « {p.label} » indisponible : {p.available()[1]}", {"provider": p.id},
+                                code="fournisseur_indisponible")
+        self._check_budget()
         last_err: Optional[Exception] = None
-        for m in models:
+        for i, (p, m) in enumerate(available):
             t0 = time.time()
             try:
                 c = p.complete(system, prompt, m, json_schema, s.get("ai.timeout_s", 180), cancel_event)
                 c.duration_ms = int((time.time() - t0) * 1000)
                 self._record(c, task_id, True)
+                if i:
+                    self.app.logbook.log("ia", f"Réponse obtenue par le repli : {p.label} / {m or 'modèle par défaut'}", "attention", task_id)
                 return c
             except ProviderError as e:
                 last_err = e
                 self._record(Completion("", provider=p.id, model=m or "", duration_ms=int((time.time() - t0) * 1000)), task_id, False)
                 if e.code in ("annule", "delai_depasse"):
                     break
-                self.app.logbook.log("ia", f"Échec du modèle {m} : {e.message} — essai du modèle de remplacement", "attention", task_id)
+                self.app.logbook.log("ia", f"Échec de {p.label} / {m} : {e.message} — essai suivant de la stratégie de repli", "attention", task_id)
         raise last_err or ProviderError("Aucune réponse du fournisseur.")
 
     def _record(self, c: Completion, task_id: Optional[int], ok: bool) -> None:

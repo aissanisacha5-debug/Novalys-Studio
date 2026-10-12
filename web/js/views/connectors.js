@@ -1,6 +1,6 @@
 // Applications connectées : état réel, capacités, permissions, limites, connexion/déconnexion, test, applications du Mac.
 import { get, post } from "../api.js";
-import { btn, el, errorBox, handleError, loading, modal, status, toast, toggle } from "../ui.js";
+import { btn, el, errorBox, handleError, loading, modal, toast, toggle } from "../ui.js";
 
 export async function render(view, params, app) {
   const page = el("div", { class: "page" }, loading());

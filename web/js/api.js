@@ -19,6 +19,15 @@ export async function api(method, path, body) {
   } catch (e) {
     throw new ApiError({ code: "hors_ligne", message: "JARVIS ne répond pas. Le service local est peut-être arrêté." }, 0);
   }
+  if (res.status === 401) {
+    // JARVIS a redémarré (nouveau jeton) : on recharge la page, une fois par minute au plus.
+    let last = 0;
+    try { last = Number(sessionStorage.getItem("jarvis-reload") || 0); } catch { /* stockage indisponible */ }
+    if (Date.now() - last > 60000) {
+      try { sessionStorage.setItem("jarvis-reload", String(Date.now())); } catch { /* ignore */ }
+      location.reload();
+    }
+  }
   let json = null;
   try { json = await res.json(); } catch { /* réponse vide */ }
   if (!res.ok || !json?.ok) throw new ApiError(json?.error || { message: `HTTP ${res.status}` }, res.status);

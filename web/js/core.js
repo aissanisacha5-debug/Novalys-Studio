@@ -1,7 +1,14 @@
 // Noyau visuel JARVIS : canvas 2D léger. Son état vient UNIQUEMENT des événements réels du backend
 // (tâche, outil, modèle, confirmation, erreur, micro) — jamais d'activité simulée.
+// Couleurs lues dans les jetons du système de design (tokens.css) : changer la palette ne demande aucune modification ici.
+function tokenRGB(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const m = v.match(/^#([0-9a-f]{6})$/i);
+  return m ? [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16)) : fallback;
+}
 const COLORS = {
-  emerald: [0, 214, 160], bright: [56, 245, 179], deep: [7, 91, 72], champagne: [215, 188, 131], amber: [244, 184, 96], red: [255, 93, 104],
+  emerald: tokenRGB("--emerald", [0, 214, 160]), bright: tokenRGB("--emerald-bright", [56, 245, 179]), deep: tokenRGB("--emerald-deep", [7, 91, 72]),
+  champagne: tokenRGB("--champagne", [215, 188, 131]), amber: tokenRGB("--amber", [244, 184, 96]), red: tokenRGB("--danger", [255, 93, 104]),
 };
 const STATES = {
   attente:      { label: "En attente",           c: "emerald",   energy: 0.18, speed: 0.15, pulse: 0.25, arcs: 0 },

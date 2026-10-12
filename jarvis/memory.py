@@ -6,7 +6,6 @@ Les secrets sont refusés à l'enregistrement.
 """
 from __future__ import annotations
 
-import json
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional
@@ -28,6 +27,7 @@ TYPES = {
     "operation": "Historique d'opération",
     "resume_conversation": "Résumé de conversation",
     "reference_document": "Référence de document",
+    "temporaire": "Information temporaire",
 }
 NATURES = ("fait", "preference", "hypothese")
 STATUSES = ("valide", "obsolete", "a_verifier")
@@ -39,6 +39,15 @@ def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", s.lower())
     s = "".join(c for c in s if not unicodedata.combining(c))
     return re.sub(r"[^a-z0-9]+", " ", s).strip()
+
+
+def _words(s: str) -> set:
+    return {w for w in _norm(s).split() if len(w) > 2}
+
+
+def similarity(a: str, b: str) -> float:
+    wa, wb = _words(a), _words(b)
+    return len(wa & wb) / len(wa | wb) if wa and wb else 0.0
 
 
 def fts_query(q: str) -> str:
@@ -53,7 +62,7 @@ class Memory:
 
     def add(self, content: str, type: str = "connaissance", source: str = "utilisateur", nature: str = "fait",
             reason: str = "", confidence: Optional[float] = None, project_id: Optional[int] = None,
-            status: str = "valide") -> Dict[str, Any]:
+            status: str = "valide", expires_at: Optional[str] = None) -> Dict[str, Any]:
         content = (content or "").strip()
         if not content:
             raise ValidationError("Contenu vide.")
@@ -69,14 +78,25 @@ class Memory:
         if dup:
             self.db.execute("UPDATE memories SET updated_at=?, status='valide' WHERE id=?", (now(), dup["id"]))
             return {**self.get(dup["id"]), "duplicate_of_existing": True}
+        if type == "temporaire" and not expires_at:
+            import datetime as _dt
+            expires_at = (_dt.datetime.now() + _dt.timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%S")
+        # Informations proches mais différentes (même type, même projet) : contradiction possible.
+        conflicts = [r for r in self.search(content, type=type, project_id=project_id, limit=10, strict_project=True)
+                     if 0.5 <= similarity(r["content"], content) < 1.0]
+        if conflicts and status == "valide":
+            status = "a_verifier"
         ts = now()
         mid = self.db.insert(
-            "INSERT INTO memories(type, nature, content, source, reason, confidence, status, project_id, created_at, updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (type, nature, content, source, reason, confidence, status, project_id, ts, ts))
+            "INSERT INTO memories(type, nature, content, source, reason, confidence, status, project_id, expires_at, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (type, nature, content, source, reason, confidence, status, project_id, expires_at, ts, ts))
         if self.logbook:
-            self.logbook.log("memoire", f"Mémorisé ({TYPES[type]}) : {content[:120]}", "succes", data={"id": mid, "source": source})
-        return self.get(mid)
+            self.logbook.log("memoire", f"Mémorisé ({TYPES[type]}) : {content[:120]}" + (" — contradiction possible, à vérifier" if conflicts else ""),
+                             "attention" if conflicts else "succes", data={"id": mid, "source": source, "conflits": [c["id"] for c in conflicts]})
+        out = self.get(mid)
+        out["possible_conflicts"] = [{"id": c["id"], "content": c["content"]} for c in conflicts]
+        return out
 
     def get(self, mid: int) -> Dict[str, Any]:
         r = self.db.one("SELECT m.*, p.name AS project_name FROM memories m LEFT JOIN projects p ON p.id=m.project_id WHERE m.id=?", (mid,))
@@ -110,7 +130,8 @@ class Memory:
         elif strict_project:
             sql += " AND m.project_id IS NULL"
         if not include_obsolete:
-            sql += " AND m.status != 'obsolete'"
+            sql += " AND m.status != 'obsolete' AND (m.expires_at IS NULL OR m.expires_at > ?)"
+            params.append(now()[:19])
         sql += " ORDER BY score, m.updated_at DESC LIMIT ?"
         params.append(limit)
         return self.db.all(sql, params)
@@ -183,6 +204,12 @@ class Memory:
                 self.db.execute("DELETE FROM memories WHERE id=?", (r["id"],))
                 removed += 1
         return {"doublons_supprimes": removed}
+
+    def purge_expired(self) -> int:
+        cur = self.db.execute("DELETE FROM memories WHERE expires_at IS NOT NULL AND expires_at <= ?", (now()[:19],))
+        if cur.rowcount and self.logbook:
+            self.logbook.log("memoire", f"{cur.rowcount} information(s) temporaire(s) expirée(s) supprimée(s)", "info")
+        return cur.rowcount
 
     def stats(self) -> Dict[str, Any]:
         rows = self.db.all("SELECT type, count(*) AS n FROM memories WHERE status!='obsolete' GROUP BY type")

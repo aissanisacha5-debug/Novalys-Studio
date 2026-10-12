@@ -16,7 +16,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from . import paths
 from .errors import JarvisError, PermissionDenied, ValidationError

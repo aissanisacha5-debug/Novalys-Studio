@@ -1,6 +1,6 @@
 // Diagnostic : contrôles de santé réels, système (processeur, mémoire, disque), processus JARVIS, durées, sauvegardes, coûts.
 import { get, post } from "../api.js";
-import { btn, el, errorBox, loading, status, toast, when } from "../ui.js";
+import { btn, download, el, errorBox, loading, status, toast } from "../ui.js";
 
 export async function render(view, params, app) {
   const page = el("div", { class: "page" }, loading("Diagnostic en cours…"));
@@ -13,6 +13,7 @@ export async function render(view, params, app) {
     const kinds = Object.fromEntries((costs.month_by_kind || []).map((k) => [k.cost_kind, k]));
     page.replaceChildren(
       el("div", { class: "toolbar" }, el("h2", { class: "title", style: { margin: 0 } }, d.summary), el("span", { class: "grow" }), btn("Relancer", load, { icon: "refresh" }),
+        btn("Copier le rapport", async () => { const r = await get("/api/diagnostics/report"); try { await navigator.clipboard.writeText(r.markdown); toast("Rapport copié (sans données confidentielles)."); } catch { download("diagnostic-jarvis.md", r.markdown); toast("Rapport téléchargé."); } }, { icon: "doc" }),
         btn("Arrêter JARVIS", async () => { await post("/api/shutdown"); document.body.replaceChildren(el("div", { class: "empty-state", style: { marginTop: "30vh" } }, el("b", {}, "JARVIS est arrêté proprement."), "Relancez-le avec l'application JARVIS.")); }, { cls: "danger" })),
       el("div", { class: "metrics" },
         sys.cpu ? m(`${sys.cpu.percent} %`, `charge processeur (${sys.cpu.cores} cœurs)`, sys.cpu.percent) : null,
@@ -35,6 +36,7 @@ export async function render(view, params, app) {
             el("div", { class: "actions" }, btn("Vérifier", async () => { const r = await post("/api/backups/verify", { name: b.name }); toast(r.ok ? `Valide : ${r.detail}, ${JSON.stringify(r.counts)}` : `Invalide : ${r.detail}`, r.ok ? "" : "err"); }, { cls: "sm ghost" }),
               btn("Restaurer", async () => { await post("/api/backups/restore", { name: b.name }); }, { cls: "sm ghost" })))))
             : el("p", { class: "faint small" }, "Aucune sauvegarde."))),
+      el("h3", {}, "Versions"), el("dl", { class: "kv" }, ...Object.entries(d.versions || {}).flatMap(([k, v]) => [el("dt", {}, k), el("dd", { class: "mono" }, v)])),
       el("h3", {}, "Processus démarrés par JARVIS"),
       sys.processes.length ? el("table", { class: "table" }, el("tbody", {}, ...sys.processes.map((p) => el("tr", {}, el("td", { class: "mono" }, p.pid), el("td", {}, p.kind), el("td", { class: "small" }, p.command),
         el("td", { class: "small faint" }, p.port ? `http://127.0.0.1:${p.port}/` : ""), el("td", {}, p.stopped_at ? el("span", { class: "badge plain" }, "arrêté") : el("span", { class: "badge ok" }, "actif")),

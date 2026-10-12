@@ -169,6 +169,7 @@ class Scheduler:
             app.notify("rappel", "Rappel", r["title"])
             app.logbook.log("rappel", f"Rappel échu : {r['title']}", "attention")
         app.tasks.start_ready_dependents()
+        app.memory.purge_expired()
         if time.time() - self._last_purge > 86400:
             self._last_purge = time.time()
             n = app.logbook.purge_older_than(app.settings.get("retention.events_days", 180))

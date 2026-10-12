@@ -6,12 +6,10 @@ import datetime as dt
 import re
 import subprocess
 import time
-from pathlib import Path
-from typing import Any, Dict, List
 
 from .. import paths
 from ..connectors import GCAL, GMAIL, cypher_crm, is_opposed, run_claude_connector, verified
-from ..errors import JarvisError, NotFound, PermissionDenied, ValidationError
+from ..errors import NotFound, PermissionDenied, ValidationError
 from ..memory import TYPES as MEM_TYPES
 from ..services import list_apps, open_app, system_info
 from .registry import CONFIRME, ECHOUE, NON_VERIFIE, PROBABLE, Tool
@@ -70,8 +68,10 @@ def h_task_done(ctx, a):
 # -- mémoire ----------------------------------------------------------------------------
 def h_mem_save(ctx, a):
     m = ctx.app.memory.add(a["content"], a.get("type", "connaissance"), f"conversation (tâche #{ctx.task_id})",
-                           a.get("nature", "fait"), a.get("reason", ""), a.get("confidence"), _project_id(ctx.app, a.get("project")))
-    return {"memory_id": m["id"], "duplicate": bool(m.get("duplicate_of_existing"))}
+                           a.get("nature", "fait"), a.get("reason", ""), a.get("confidence"), _project_id(ctx.app, a.get("project")),
+                           expires_at=a.get("expires_at"))
+    return {"memory_id": m["id"], "duplicate": bool(m.get("duplicate_of_existing")), "status": m["status"],
+            "possible_conflicts": m.get("possible_conflicts", [])}
 
 
 def v_mem_save(ctx, a, r):
@@ -360,10 +360,11 @@ def register(reg) -> None:
                       {"task_id": P(type="integer", required=True)}, h_task_cancel, "modere", "taches", 15))
     reg.register(Tool("tache_terminer", "Marquer terminée une tâche manuelle.",
                       {"task_id": P(type="integer", required=True)}, h_task_done, "faible", "taches", 15))
-    reg.register(Tool("memoire_enregistrer", "Mémoriser une information durable utile (jamais de secret). nature : fait, preference ou hypothese.",
+    reg.register(Tool("memoire_enregistrer", "Mémoriser une information utile (jamais de secret). nature : fait, preference ou hypothese ; type temporaire = expire (7 jours par défaut). Signale les contradictions.",
                       {"content": P(type="string", required=True, maxLength=2000), "type": P(type="string", enum=list(MEM_TYPES)),
                        "nature": P(type="string", enum=["fait", "preference", "hypothese"], default="fait"),
                        "reason": P(type="string", required=True, description="pourquoi c'est mémorisé"), "confidence": P(type="number", min=0, max=1),
+                       "expires_at": P(type="string", description="AAAA-MM-JJTHH:MM pour une information temporaire"),
                        "project": P(type="string")},
                       h_mem_save, "faible", "memoire", 15, verify=v_mem_save, verification="présence en base"))
     reg.register(Tool("memoire_rechercher", "Rechercher dans la mémoire durable.",

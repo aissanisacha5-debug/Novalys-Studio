@@ -1,4 +1,4 @@
-# Audit de l'environnement — 2026-10-12
+# Audit de l'environnement — 2026-10-12 (complété pour la v0.2)
 
 Audit réalisé avant toute installation, en lecture seule. Aucun mot de passe, cookie, clé ni secret n'a été collecté.
 
@@ -57,6 +57,12 @@ Constat important : sans `--setting-sources` utilisateur, la CLI ne charge pas l
 | Micro | demandé par Chrome lors de la première dictée (action de Sacha) |
 | Trousseau | `security` (secrets de JARVIS, service `studio.novalys.jarvis`) |
 | Lancement au démarrage | **non configuré** (accord explicite requis) |
+
+## Versions vérifiées (v0.2)
+Python 3.9.6 · SQLite 3.51.0 · Claude Code 2.1.296 · Google Chrome 154.0.8037.99 · macOS 26.7.1. Affichées en direct dans Diagnostic (`python3 jarvis.py deps`).
+
+## État Git
+Dossier `JARVIS/` versionné localement (sans dépôt distant). Point de restauration `eb730a6` (v0.1.0) créé avant les travaux du prompt 3. `data/` et `workspace/` exclus.
 
 ## Projet existant
 

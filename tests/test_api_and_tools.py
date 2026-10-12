@@ -1,7 +1,6 @@
 """API locale (jeton, hôte, origine, réglages sensibles), outils fichiers/documents/sites, automatisations."""
 import json
 import threading
-import time
 import unittest
 import urllib.error
 import urllib.request

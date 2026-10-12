@@ -98,7 +98,8 @@ export async function render(view, params, app) {
           }, { cls: "sm ghost" }) : null,
           btn("Lire", () => app.voice.speak(m.content), { cls: "sm ghost", icon: "speaker", title: "Lire à voix haute" }),
           meta.status && ["bloquee", "echouee", "attente_reponse"].includes(meta.status) && meta.task_id ? btn("Reprendre", async () => { await post(`/api/tasks/${meta.task_id}/resume`); loadMessages(); }, { cls: "sm ghost", icon: "play" }) : null);
-        inner.append(el("div", { class: "msg assistant" }, el("div", { class: "who" }, "JARVIS ", when(m.created_at)), el("div", { class: "body" }, md(m.content)), line, stepsBox));
+        inner.append(el("div", { class: "msg assistant" }, el("div", { class: "who" }, "JARVIS ", when(m.created_at)), el("div", { class: "body" }, md(m.content)),
+          meta.next_action ? el("div", { class: "small rare" }, "Prochaine action : ", meta.next_action) : null, line, stepsBox));
       }
     }
     if (c.running_task) await showRunning(c.running_task.id);

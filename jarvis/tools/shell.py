@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .. import paths
 from ..db import now
 from ..errors import JarvisError, NotFound, PermissionDenied, ValidationError
-from .registry import CONFIRME, ECHOUE, PROBABLE, Tool, ToolContext
+from .registry import CONFIRME, ECHOUE, Tool, ToolContext
 
 SHELL_META = re.compile(r"(\|\||&&|[|;<>`]|\$\(|\$\{|\n)")
 

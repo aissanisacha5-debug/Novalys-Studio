@@ -11,7 +11,10 @@
 | Le micro ne marche pas | Autorisation Chrome ou macOS | Cliquer l'icône micro dans la fenêtre / Réglages Système > Confidentialité > Micro > Google Chrome |
 | Pas de notification macOS | « Éditeur de script » non autorisé | Réglages Système > Notifications > Éditeur de script |
 | Gmail « indisponible » | Connecteur désactivé dans JARVIS | Applications connectées > Gmail > Activé (confirmation), puis Tester |
+| Navigateur piloté « n'a pas démarré » | Chrome absent ou bloqué | `python3 jarvis.py deps` ; fermer via Navigateur > Fermer le navigateur piloté, puis réessayer |
+| Besoin d'aide extérieure | — | Diagnostic > **Copier le rapport** (expurgé : pas de chemins personnels, de contenus ni de secrets) |
+| Vérifier l'installation | — | `python3 jarvis.py deps` puis `python3 jarvis.py check` |
 | Port 8765 occupé | Autre programme | `JARVIS_PORT=8766 python3 jarvis.py start` |
-| Erreur après mise à jour | Migration ou code | Diagnostic ; sinon restaurer la dernière sauvegarde (INSTALLATION.md) |
+| Erreur après mise à jour | Migration ou code | Diagnostic ; sinon restaurer la dernière sauvegarde (SETUP.md) |
 
 Journal technique : `data/logs/jarvis.log`. Journal d'activité : page Historique (exportable).

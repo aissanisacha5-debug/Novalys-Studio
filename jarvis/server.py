@@ -20,14 +20,13 @@ import time
 import traceback
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from . import VERSION, paths
 from .agent import profiles
 from .config import MODES, touches_sensitive
-from .db import dumps, loads, now
-from .errors import ConfirmationRequired, JarvisError, NotFound, PermissionDenied, ValidationError
+from .db import loads
+from .errors import ConfirmationRequired, JarvisError, NotFound, ValidationError
 from .scheduler import ACTIONS, TRIGGERS
 from .services import list_apps, system_info
 from .tools.registry import ToolContext
@@ -107,6 +106,7 @@ class Api:
         r("POST", r"/api/voice/speak", lambda q, b: self.app.voice.speak(b.get("text", "")))
         r("POST", r"/api/voice/stop", lambda q, b: {"stopped": self.app.voice.stop()})
         r("GET", r"/api/diagnostics", lambda q, b: self.app.diagnostics.run())
+        r("GET", r"/api/diagnostics/report", lambda q, b: {"markdown": self.app.diagnostics.report()})
         r("GET", r"/api/system", lambda q, b: {**system_info(), "processes": self.app.db.all("SELECT * FROM processes ORDER BY id DESC LIMIT 30"),
                                                "tasks_running": self.app.tasks.running(), "durations": self.app.db.all(
                                                    "SELECT id, title, status, started_at, finished_at FROM tasks WHERE finished_at IS NOT NULL "
@@ -483,10 +483,21 @@ def make_handler(api: Api, port: int):
     return Handler
 
 
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        import sys
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionResetError, BrokenPipeError, TimeoutError)):
+            return  # fenêtre fermée ou rechargée : rien d'anormal
+        super().handle_error(request, client_address)
+
+
 def serve(app, port: int, token: str) -> ThreadingHTTPServer:
     global _SERVER
     api = Api(app, token)
-    srv = ThreadingHTTPServer(("127.0.0.1", port), make_handler(api, port))
+    srv = _Server(("127.0.0.1", port), make_handler(api, port))
     srv.daemon_threads = True
     _SERVER = srv
     return srv
