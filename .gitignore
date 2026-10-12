@@ -1,0 +1,18 @@
+# Données privées et secrets : jamais dans Git
+data/
+workspace/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.db
+*.db-wal
+*.db-shm
+token
+# Système / outils
+.DS_Store
+__pycache__/
+*.pyc
+*.log

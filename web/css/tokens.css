@@ -1,0 +1,91 @@
+/* JARVIS — système de design « Obsidian Emerald ».
+   Toutes les couleurs, espacements, rayons, ombres, profondeurs, typographies,
+   tailles d'icônes et durées sont définis ici. Les composants n'utilisent que ces variables. */
+:root {
+  /* Palette */
+  --obsidian: #080A0B;
+  --anthracite: #101416;
+  --graphite: #191F20;
+  --emerald: #00D6A0;
+  --emerald-bright: #38F5B3;
+  --emerald-deep: #075B48;
+  --champagne: #D7BC83;
+  --ivory: #E9F0EE;
+  --silver: #929D99;
+  --danger: #FF5D68;
+  --amber: #F4B860;
+
+  /* Rôles */
+  --bg: var(--obsidian);
+  --bg-raised: var(--anthracite);
+  --surface: var(--graphite);
+  --surface-hover: #1F2628;
+  --line: rgba(233, 240, 238, 0.07);
+  --line-strong: rgba(233, 240, 238, 0.13);
+  --text: var(--ivory);
+  --text-muted: var(--silver);
+  --text-faint: #66716D;
+  --accent: var(--emerald);
+  --accent-strong: var(--emerald-bright);
+  --accent-soft: rgba(0, 214, 160, 0.10);
+  --accent-line: rgba(0, 214, 160, 0.35);
+  --selected: var(--emerald-deep);
+  --rare: var(--champagne);
+  --ok: var(--emerald);
+  --info: var(--silver);
+  --wait: var(--amber);
+  --err: var(--danger);
+  --err-soft: rgba(255, 93, 104, 0.10);
+  --wait-soft: rgba(244, 184, 96, 0.10);
+
+  /* Typographie : polices système (aucune dépendance) */
+  --font: -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --font-display: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, monospace;
+  --fs-xs: 11.5px;
+  --fs-sm: 12.5px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 28px;
+  --fs-3xl: 40px;
+  --lh: 1.55;
+  --tracking-display: -0.022em;
+
+  /* Espacements (échelle de 4) */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px; --s12: 48px;
+
+  /* Rayons : hiérarchie, pas un rayon unique */
+  --r-xs: 4px;
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  /* Ombres et profondeur */
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 18px 50px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--line);
+  --glow: 0 0 0 1px var(--accent-line), 0 0 24px -6px rgba(0, 214, 160, 0.45);
+  --z-rail: 10; --z-header: 20; --z-overlay: 60; --z-modal: 70; --z-toast: 80;
+
+  /* Icônes */
+  --icon-sm: 15px; --icon-md: 18px; --icon-lg: 22px;
+
+  /* Mouvement */
+  --t-fast: 120ms;
+  --t-med: 220ms;
+  --t-slow: 420ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+
+  /* Gabarit */
+  --sidebar-w: 224px;
+  --rail-w: 328px;
+  --content-max: 860px;
+}
+
+/* Préférence « réduire les animations » (système) ou réglage JARVIS */
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t-med: 0ms; --t-slow: 0ms; }
+}
+:root[data-motion="reduites"] { --t-med: 80ms; --t-slow: 120ms; }
+:root[data-motion="aucune"] { --t-fast: 0ms; --t-med: 0ms; --t-slow: 0ms; }

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="jarvis-token" content="__JARVIS_TOKEN__">
+  <meta name="color-scheme" content="dark">
+  <title>JARVIS</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <div class="shell" id="shell">
+    <aside class="sidebar" id="sidebar" aria-label="Navigation">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">JARVIS</span><span class="brand-ver" id="ver"></span></div>
+      <nav class="nav" id="nav"></nav>
+      <div class="side-foot">
+        <div class="mode-chip"><span class="dot" id="prov-dot"></span><span id="prov-label">Fournisseur IA…</span></div>
+        <div class="mode-chip"><span class="dot ok"></span><span id="mode-label">Mode…</span></div>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="mic-banner" id="mic-banner" role="status"><span class="live"></span><span>Microphone actif — JARVIS vous écoute.</span>
+        <button class="btn sm" id="mic-stop" style="margin-left:auto">Couper le micro</button></div>
+      <header class="topbar">
+        <button class="btn icon ghost menu-btn" id="menu-btn" aria-label="Ouvrir la navigation"></button>
+        <canvas class="mini-core" id="mini-core" width="60" height="60" aria-hidden="true"></canvas>
+        <div><h1 id="page-title">Accueil</h1><div class="sub" id="page-sub"></div></div>
+        <div class="spacer"></div>
+        <span class="badge" id="core-badge" aria-live="polite">En attente</span>
+        <button class="btn danger sm" id="stop-all" title="Interrompre (Échap)">Interrompre</button>
+      </header>
+      <div class="view" id="view"></div>
+    </main>
+    <aside class="rail" id="rail" aria-label="Activité"></aside>
+  </div>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
