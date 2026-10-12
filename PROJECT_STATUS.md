@@ -14,7 +14,7 @@ Mis à jour : 2026-10-12 · **Version 0.5.0** (prompt 6 : vocal instantané, aut
 | Contenu suspect → retour aux confirmations | opérationnel | test_contenu_contamine |
 | Chaîne d'actions locales sans confirmation | opérationnelle | test (4 outils, 0 confirmation) |
 | Tout arrêter | opérationnel | test (tâche annulée « réponse interrompue ») |
-| `python3 jarvis.py check` | **103 tests, 0 échec** | 2026-10-12 |
+| `python3 jarvis.py check` | **102 tests, 0 échec** (5 ignorés : tests réels, réseau) | 2026-10-12 |
 
 Version 0.4.0 (prompt 5 : assistant vocal, mémoire, tâches) — base : v0.3 application indépendante
 
