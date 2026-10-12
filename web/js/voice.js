@@ -4,16 +4,38 @@ import { post } from "./api.js";
 import { $, handleError, toast } from "./ui.js";
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Dans l'application JARVIS (WebKit), la dictée passe par le moteur natif de macOS (Speech, sur l'appareil si possible).
+const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jarvisVoice);
 
 export class Voice {
   constructor(app) {
     this.app = app; this.listening = false; this.rec = null; this.interim = ""; this.onTranscript = null; this.onInterim = null;
-    this.supported = !!SR;
+    this.supported = NATIVE || !!SR;
+    this.engine = NATIVE ? "macOS (Speech)" : SR ? "navigateur" : "aucun";
+    if (NATIVE) {
+      window.jarvisNativeVoice = {
+        emit: (ev) => {
+          if (ev.type === "start") this.setListening(true);
+          if (ev.type === "result") {
+            if (ev.final) { if (ev.text.trim()) this.deliver(ev.text.trim(), ev.confidence); }
+            else { this.interim = ev.text; this.onInterim?.(ev.text); }
+          }
+          if (ev.type === "error") { toast(ev.message, ev.error === "no-speech" ? "wait" : "err"); this.setListening(false); }
+          if (ev.type === "end") this.setListening(false);
+        },
+      };
+    }
   }
   toggle() { this.listening ? this.stopListening() : this.startListening(); }
   startListening() {
-    if (!this.supported) { toast("La reconnaissance vocale n'est pas disponible dans ce navigateur (utilisez la fenêtre JARVIS ouverte avec Chrome).", "err"); return; }
+    if (!this.supported) { toast("La reconnaissance vocale n'est pas disponible ici : ouvrez JARVIS avec son application.", "err"); return; }
     if (this.listening) return;
+    if (NATIVE) {
+      // l'indicateur ne s'allume qu'à la confirmation du micro par l'application (événement « start »)
+      window.webkit.messageHandlers.jarvisVoice.postMessage({ cmd: "start" });
+      post("/api/voice/stop").catch(() => {});
+      return;
+    }
     const rec = new SR();
     rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
     rec.onresult = (e) => {
@@ -35,7 +57,11 @@ export class Voice {
     this.rec = rec; this.setListening(true);
     post("/api/voice/stop").catch(() => {});          // JARVIS se tait quand on lui parle
   }
-  stopListening() { try { this.rec?.abort(); } catch { /* ignore */ } this.setListening(false); }
+  stopListening() {
+    if (NATIVE) { window.webkit.messageHandlers.jarvisVoice.postMessage({ cmd: "stop" }); }
+    try { this.rec?.abort(); } catch { /* ignore */ }
+    this.setListening(false);
+  }
   setListening(on) {
     this.listening = on;
     $("#mic-banner").classList.toggle("on", on);

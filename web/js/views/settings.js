@@ -7,8 +7,8 @@ export async function render(view, params, app) {
   const page = el("div", { class: "page narrow" }, loading());
   view.append(page);
   async function load() {
-    let d, v;
-    try { [d, v] = await Promise.all([get("/api/settings"), get("/api/voice")]); } catch (e) { return page.replaceChildren(errorBox(e)); }
+    let d, v, svc;
+    try { [d, v, svc] = await Promise.all([get("/api/settings"), get("/api/voice"), get("/api/service")]); } catch (e) { return page.replaceChildren(errorBox(e)); }
     const s = d.settings;
     const save = async (p, quiet) => { try { await patch("/api/settings", p); if (!quiet) toast("Réglage enregistré."); app.emit({ type: "settings" }); } catch (e) { handleError(e); setTimeout(load, 800); } };
     const sel = (opts, val, onch) => { const x = select(opts, val); x.addEventListener("change", () => onch(x.value)); return x; };
@@ -31,10 +31,21 @@ export async function render(view, params, app) {
         toggle("Lire les réponses à voix haute", s.voice.auto_speak, (x) => save({ voice: { auto_speak: x } })),
         btn("Tester la voix", () => post("/api/voice/speak", { text: "Bonjour Sacha, je suis JARVIS. Tout est en ordre." }), { cls: "sm", icon: "speaker" }),
         el("p", { class: "small faint" }, "Mot d'activation : non disponible dans cette version (aucune écoute permanente).")),
-      sec("Démarrage et raccourcis",
-        toggle("Ouvrir la fenêtre au lancement", s.startup.open_window, (x) => save({ startup: { open_window: x } })),
+      sec("Service et démarrage",
+        el("dl", { class: "kv" }, el("dt", {}, "Service"), el("dd", {}, `actif depuis ${Math.round(svc.uptime_s / 60)} min, lancé par ${svc.launched_by} (processus ${svc.pid})`),
+          el("dt", {}, "Fenêtres connectées"), el("dd", {}, String(svc.windows_connected)),
+          el("dt", {}, "Données"), el("dd", { class: "mono" }, svc.data_dir), el("dt", {}, "Espace de travail"), el("dd", { class: "mono" }, svc.workspace_dir)),
+        toggle("Démarrer le service JARVIS automatiquement à l'ouverture de session (garde rappels et automatisations actifs, même application quittée)",
+          svc.autostart, async (x, i) => {
+            try { await post("/api/service/autostart", { enabled: x }); toast(x ? "Démarrage automatique activé." : "Démarrage automatique désactivé."); load(); }
+            catch (e) { i.checked = svc.autostart; handleError(e); setTimeout(load, 1200); }
+          }),
+        el("dl", { class: "kv" }, ...Object.entries({ "Fenêtre fermée": svc.states.fenetre_fermee, "Application quittée": svc.states.application_quittee,
+          "Service arrêté": svc.states.service_arrete, "Mac en veille": svc.states.veille, "Mac éteint": svc.states.eteint })
+          .flatMap(([k, v]) => [el("dt", {}, k), el("dd", { class: "small muted" }, v)]))),
+      sec("Raccourcis",
         el("dl", { class: "kv" }, ...Object.entries({ "Écrire": "/", "Parler": "Alt + Espace", "Interrompre": "Échap", "Rechercher partout": "⌘ + K" }).flatMap(([k, x]) => [el("dt", {}, k), el("dd", { class: "mono" }, x)])),
-        el("p", { class: "small faint" }, "JARVIS ne démarre pas automatiquement avec le Mac (non activé, nécessite votre accord explicite).")),
+        el("p", { class: "small faint" }, "Dans l'application : ⌘, ouvre les paramètres, ⇧⌘D le diagnostic, ⌘R recharge l'interface.")),
       sec("Autonomie et confirmations",
         el("div", { class: "form-row" },
           field("Tours maximum par tâche", num(s.autonomy.max_steps, (x) => save({ autonomy: { max_steps: x } }), { min: 1, max: 50 })),

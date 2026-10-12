@@ -95,6 +95,7 @@ class Api:
         r("PATCH", r"/api/settings", self.settings_patch)
         r("POST", r"/api/settings/restore/(\d+)", lambda q, b, i: self.sensitive_change({"__restore_version__": int(i)}, "restauration de configuration"))
         r("GET", r"/api/providers", lambda q, b: self.app.providers.status())
+        r("POST", r"/api/providers/test", self.provider_test)
         r("GET", r"/api/secrets", lambda q, b: self.app.secrets.status())
         r("POST", r"/api/secrets", self.secret_set)
         r("DELETE", r"/api/secrets/([a-z_]+)", lambda q, b, n: (self.app.secrets.delete(n), {"deleted": True})[1])
@@ -124,6 +125,8 @@ class Api:
         r("GET", r"/api/sources", lambda q, b: self.app.db.all("SELECT * FROM web_sources ORDER BY id DESC LIMIT 200"))
         r("GET", r"/api/plugins", lambda q, b: self.app.plugins)
         r("POST", r"/api/shutdown", self.shutdown)
+        r("GET", r"/api/service", self.service_info)
+        r("POST", r"/api/service/autostart", self.autostart)
 
     def add(self, method: str, pattern: str, fn: Callable) -> None:
         self.routes.append((method, re.compile("^" + pattern + "$"), fn))
@@ -229,6 +232,11 @@ class Api:
             return app.backups.restore(args["__restore_backup__"])
         if "__secret__" in args:
             return {"ok": True}
+        if "__autostart__" in args:
+            from . import service
+            res = service.enable_autostart(app.port)
+            app.logbook.log("service", "Démarrage automatique activé (LaunchAgent)", "attention", data=res)
+            return res
         res = app.settings.update(args, "modification confirmée par Sacha")
         app.logbook.log("parametres", f"Paramètres sensibles modifiés : {', '.join(touches_sensitive(args))}", "attention")
         return {"settings": res}
@@ -329,6 +337,33 @@ class Api:
                 except JarvisError as e:
                     out.append({"name": d.name, "dir": str(d), "error": e.message})
         return {"root": str(root), "sites": out}
+
+    def provider_test(self, q, b):
+        """Test réel du fournisseur actif (avec sa stratégie de repli) : un court appel JSON."""
+        from .errors import ProviderError
+        t0 = time.time()
+        try:
+            c = self.app.providers.complete("Tu es un test de disponibilité. Réponds en JSON.", "Renvoie ok=true.",
+                                            {"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]})
+        except (ProviderError, JarvisError) as e:
+            return {"ok": False, "detail": e.message, "code": e.code}
+        ok = bool(c.data and c.data.get("ok"))
+        return {"ok": ok, "provider": c.provider, "model": c.model, "ms": int((time.time() - t0) * 1000),
+                "detail": "réponse JSON valide" if ok else "réponse reçue mais invalide"}
+
+    def service_info(self, q, b):
+        from . import service
+        return service.info(self.app)
+
+    def autostart(self, q, b):
+        from . import service
+        if not b.get("enabled"):
+            res = service.disable_autostart()
+            self.app.logbook.log("service", "Démarrage automatique désactivé", "info")
+            return res
+        return self.sensitive_change({"__autostart__": True}, "Activer le démarrage automatique de JARVIS",
+                                     "Un agent de lancement utilisateur (~/Library/LaunchAgents) démarrera le service JARVIS à chaque "
+                                     "ouverture de session et le relancera après un plantage. Réversible à tout moment ici.")
 
     def shutdown(self, q, b):
         threading.Thread(target=_shutdown_later, args=(self.app,), daemon=True).start()

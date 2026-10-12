@@ -223,6 +223,10 @@ class AgentRunner:
                 self._finish_step(sid, "echec", error=e.message, t0=t0)
                 if e.code == "annule":
                     raise Cancelled("Tâche annulée.")
+                if e.code in ("limite_usage", "limite_debit", "fournisseur_indisponible", "echec_authentification"):
+                    app.notify("limite" if e.code.startswith("limite") else "integration", "Fournisseur IA indisponible", e.message)
+                    return tm.finish(self.tid, "bloquee", f"Je ne peux pas réfléchir pour l'instant : {e.message}", "bloque", error=e.message,
+                                     next_action="Reprendre la tâche quand le fournisseur est de nouveau disponible, ou configurer un autre fournisseur (Modèles IA).")
                 return tm.finish(self.tid, "echouee", f"Le modèle IA n'a pas pu répondre : {e.message}", "echoue", error=e.message)
             except LimitReached as e:
                 self._finish_step(sid, "echec", error=e.message, t0=t0)

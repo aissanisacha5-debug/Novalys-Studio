@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -36,9 +37,13 @@ def claude_bin() -> Optional[str]:
 
 
 def clean_env() -> Dict[str, str]:
-    env = {k: v for k, v in os.environ.items() if not k.startswith("ANTHROPIC_") and not k.startswith("CLAUDE_CODE_")
-           and k not in ("CLAUDECODE",)}
-    env["PATH"] = env.get("PATH", "/usr/bin:/bin") + ":" + os.path.dirname(claude_bin() or "/usr/bin")
+    """Environnement minimal et explicite pour la CLI : rien n'est hérité d'une autre session (variables
+    Claude, ANTHROPIC_*, PWD…). PWD hérité d'un dossier protégé (Documents) faisait attendre la CLI sur
+    une autorisation macOS : le dossier courant est donc toujours le bac à sable de JARVIS."""
+    keep = ("HOME", "USER", "LOGNAME", "TMPDIR", "LANG", "LC_ALL", "SSH_AUTH_SOCK", "__CF_USER_TEXT_ENCODING")
+    env = {k: os.environ[k] for k in keep if k in os.environ}
+    env["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin:" + os.path.dirname(claude_bin() or "/usr/bin")
+    env["PWD"] = str(paths.data_dir() / "ia-sandbox")
     return env
 
 
@@ -103,6 +108,12 @@ class ClaudeCodeProvider(Provider):
             d = json.loads(out)
         except ValueError:
             raise ProviderError("Réponse illisible de Claude Code.", {"stderr": err[-400:], "stdout": out[-400:]})
+        msg = str(d.get("result") or "")
+        if d.get("is_error") and re.search(r"(?i)(session|usage|weekly|rate) limit|limite", msg):
+            reset = re.search(r"(?i)resets?\s+([^·\n]+)", msg)
+            raise ProviderError("Limite d'usage de l'abonnement Claude atteinte" + (f" (réinitialisation : {reset.group(1).strip()})" if reset else "")
+                                + ". Attendez la réinitialisation ou choisissez un autre fournisseur dans Modèles IA.",
+                                {"reset": reset.group(1).strip() if reset else None}, code="limite_usage")
         if d.get("is_error") or d.get("subtype") not in (None, "success"):
             raise ProviderError(f"Claude Code a renvoyé une erreur : {str(d.get('result') or d.get('subtype'))[:300]}",
                                 {"subtype": d.get("subtype")})

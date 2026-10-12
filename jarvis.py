@@ -13,7 +13,8 @@
   python3 jarvis.py deps       contrôle des prérequis système (aucune dépendance à installer)
   python3 jarvis.py dev        mode développement : données séparées (data-dev), port 8766, rechargement auto
   python3 jarvis.py demo       démonstration : données FICTIVES séparées (data-demo), port 8767
-  python3 jarvis.py build      check + création du lanceur ~/Applications/JARVIS.app
+  python3 jarvis.py build      check + compilation de dist/JARVIS.app et dist/JARVIS-<version>.dmg
+  python3 jarvis.py install    installe dist/JARVIS.app dans ~/Applications (l'ancienne version est conservée à part)
 """
 from __future__ import annotations
 
@@ -33,6 +34,11 @@ sys.path.insert(0, str(ROOT))
 from jarvis import VERSION, paths  # noqa: E402
 
 CHROME = "/Applications/Google Chrome.app"
+INSTALLED_APP = Path.home() / "Applications" / "JARVIS.app"
+
+
+def installed_native_app() -> bool:
+    return (INSTALLED_APP / "Contents" / "Resources" / "app" / "jarvis.py").exists()
 
 
 def port() -> int:
@@ -96,6 +102,9 @@ def serve() -> None:
 
 def open_window() -> None:
     if os.environ.get("JARVIS_NO_WINDOW"):
+        return
+    if installed_native_app() and port() == 8765:
+        subprocess.Popen(["open", str(INSTALLED_APP)])        # fenêtre native JARVIS
         return
     url = f"http://127.0.0.1:{port()}/"
     if os.path.isdir(CHROME):
@@ -265,18 +274,33 @@ def demo() -> None:
 
 
 def build() -> None:
-    """JARVIS est une application web locale : « construire » = vérifier, tester, puis (re)créer le lanceur macOS."""
+    """Vérifie, teste, puis compile l'application native et l'image disque (dist/)."""
     check()
-    code = subprocess.call(["/bin/zsh", str(ROOT / "scripts" / "creer-lanceur.sh")])
-    app = Path.home() / "Applications" / "JARVIS.app"
-    if code or not (app / "Contents" / "MacOS" / "applet").exists():
-        print("Échec de la création du lanceur.")
+    code = subprocess.call([sys.executable, str(ROOT / "scripts" / "build_app.py")], cwd=str(ROOT))
+    if code:
+        sys.exit(code)
+
+
+def install() -> None:
+    """Installe dist/JARVIS.app dans ~/Applications sans toucher aux données (elles sont dans Application Support)."""
+    import shutil
+    src = ROOT / "dist" / "JARVIS.app"
+    if not src.exists():
+        print("Aucune application construite : lancer d'abord « python3 jarvis.py build ».")
         sys.exit(1)
-    print(f"build OK : {app} (lanceur ; ce n'est pas un installateur natif).")
+    INSTALLED_APP.parent.mkdir(parents=True, exist_ok=True)
+    if INSTALLED_APP.exists():
+        keep = paths.SUPPORT_DIR / "anciennes-versions" / f"JARVIS-{time.strftime('%Y%m%d-%H%M%S')}.app"
+        keep.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(INSTALLED_APP), str(keep))
+        print(f"Ancienne version conservée : {keep}")
+    shutil.copytree(str(src), str(INSTALLED_APP), symlinks=True)
+    r = subprocess.run(["codesign", "--verify", "--deep", "--strict", str(INSTALLED_APP)], capture_output=True)
+    print(f"Installé : {INSTALLED_APP} (signature {'valide' if r.returncode == 0 else 'INVALIDE'})")
 
 
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "start"
     {"start": start, "serve": serve, "stop": stop, "status": status, "open": open_window, "backup": backup, "test": test,
-     "verifier": verifier, "check": check, "deps": deps, "dev": dev, "demo": demo, "build": build}.get(
+     "verifier": verifier, "check": check, "deps": deps, "dev": dev, "demo": demo, "build": build, "install": install}.get(
         cmd, lambda: print(__doc__))()

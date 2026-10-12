@@ -1,6 +1,6 @@
 // Modèles IA : fournisseurs réellement disponibles, modèle et modèle de remplacement, test, consommation.
 import { get, patch, post } from "../api.js";
-import { btn, el, errorBox, field, handleError, loading, select, toast } from "../ui.js";
+import { btn, el, errorBox, field, handleError, input, loading, select, toast } from "../ui.js";
 
 export async function render(view, params, app) {
   const page = el("div", { class: "page" }, loading());
@@ -16,13 +16,32 @@ export async function render(view, params, app) {
     const models = active?.models?.length ? active.models : [ai.model];
     const modelSel = select(models, ai.model); modelSel.addEventListener("change", () => save({ model: modelSel.value }));
     const fbSel = select([["", "Aucun"], ...models.map((m) => [m, m])], ai.fallback_model || ""); fbSel.addEventListener("change", () => save({ fallback_model: fbSel.value || null }));
+    const fbProv = select([["", "Aucun"], ...ps.filter((p) => p.id !== ai.provider).map((p) => [p.id, `${p.label}${p.available ? "" : " — indisponible"}`])], ai.fallback_provider || "");
+    fbProv.addEventListener("change", () => save({ fallback_provider: fbProv.value || null }));
+    const oac = ai.openai_compatible || {};
+    const oaUrl = input({ value: oac.base_url || "", placeholder: "https://…/v1" }), oaModel = input({ value: oac.model || "", placeholder: "nom du modèle" }),
+      oaLabel = input({ value: oac.label || "", placeholder: "ex. Mistral" });
     page.replaceChildren(
       el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Fournisseur actif"),
         el("div", { class: "form-row" }, field("Fournisseur", provSel), field("Modèle", modelSel), field("Modèle de remplacement", fbSel)),
         el("div", { class: "toolbar", style: { marginTop: "12px", marginBottom: 0 } },
-          btn("Tester le fournisseur", async () => { const r = await post("/api/connectors/claude_code/test"); toast(r.ok ? `Réponse reçue : ${r.detail} (${r.ms} ms)` : `Échec : ${r.detail}`, r.ok ? "" : "err"); }, { cls: "primary" })),
-        el("p", { class: "small muted" }, "Claude via Claude Code utilise la connexion de ce Mac à votre abonnement Claude : pas de clé API ni de facturation à l'appel, mais les limites d'usage de l'abonnement s'appliquent. ",
-          "JARVIS l'utilise comme moteur de texte sans aucun outil Claude Code : toutes les actions passent par les outils et les permissions de JARVIS.")),
+          btn("Tester le fournisseur actif", async () => { const r = await post("/api/providers/test"); toast(r.ok ? `Réponse reçue de ${r.provider} / ${r.model} (${r.ms} ms)` : `Échec : ${r.detail}`, r.ok ? "" : "err"); }, { cls: "primary" })),
+        el("p", { class: "small muted" }, "JARVIS a son propre moteur : le fournisseur ne sert qu'à générer le texte, en arrière-plan ; aucune interface externe n'est ouverte. ",
+          "« Claude (via Claude Code) » réutilise la connexion de ce Mac à votre abonnement : pas de clé API ni de facturation à l'appel, mais les limites d'usage s'appliquent et Claude Code doit rester installé. ",
+          "Tous les fournisseurs distants nécessitent Internet ; seul un modèle local (Ollama, LM Studio) fonctionne hors ligne.")),
+      el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Fournisseur de remplacement et fournisseur compatible OpenAI"),
+        el("div", { class: "form-row" },
+          field("Fournisseur de remplacement (si le principal échoue)", fbProv),
+          field("Adresse de l'API compatible OpenAI", oaUrl), field("Modèle", oaModel), field("Nom affiché", oaLabel)),
+        el("div", { class: "toolbar", style: { marginTop: "12px", marginBottom: 0 } },
+          btn("Enregistrer ce fournisseur", async () => {
+            try { await patch("/api/settings", { ai: { openai_compatible: { base_url: oaUrl.value.trim(), model: oaModel.value.trim(), label: oaLabel.value.trim() } } }); }
+            catch (e) { handleError(e); }
+            setTimeout(load, 1200);
+          }, { cls: "primary" }),
+          el("a", { class: "btn ghost", href: "#/securite" }, "Enregistrer sa clé (trousseau)")),
+        el("p", { class: "small muted" }, "Exemples : https://api.openai.com/v1 (payant, clé requise), https://api.mistral.ai/v1, ou un modèle local http://127.0.0.1:1234/v1 (LM Studio) ou http://127.0.0.1:11434/v1 (Ollama), sans clé. ",
+          "Une adresse distante reçoit le contenu des conversations : son activation demande votre confirmation. Aucun repli n'est utilisé s'il n'est pas configuré.")),
       el("h3", {}, "Fournisseurs"),
       el("table", { class: "table" }, el("thead", {}, el("tr", {}, ...["Fournisseur", "État", "Local / distant", "Capacités", "Modèles"].map((h) => el("th", {}, h)))),
         el("tbody", {}, ...ps.map((p) => el("tr", {}, el("td", {}, p.label, p.active ? el("span", { class: "badge ok", style: { marginLeft: "6px" } }, "actif") : null),

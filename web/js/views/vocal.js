@@ -21,7 +21,7 @@ export async function render(view, params, app) {
     el("div", { class: "core-wrap", style: { margin: "0 auto", width: "min(320px, 70vw)" } }, canvas),
     transcript,
     el("div", { style: { display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" } }, mic, stopBtn),
-    unsupported ? el("p", { class: "error-box", style: { marginTop: "16px" } }, "La reconnaissance vocale n'est pas disponible dans ce navigateur. Ouvrez JARVIS avec l'application JARVIS (fenêtre Chrome).") : null,
+    unsupported ? el("p", { class: "error-box", style: { marginTop: "16px" } }, "La reconnaissance vocale n'est pas disponible ici. Ouvrez JARVIS avec son application.") : null,
     el("div", { style: { marginTop: "24px" } }, answer),
     el("div", { class: "panel", style: { textAlign: "left", marginTop: "28px" } },
       el("div", { class: "form-row" },
@@ -29,7 +29,9 @@ export async function render(view, params, app) {
         el("label", { class: "switch", style: { alignSelf: "end" } }, autoSpeak, "Lire les réponses à voix haute")),
       el("p", { class: "small muted", style: { marginTop: "14px" } },
         "Confidentialité : le micro reste coupé tant que vous ne l'activez pas, et un bandeau vert reste visible pendant l'écoute. ",
-        "La transcription utilise le moteur de dictée de Chrome, qui envoie l'audio aux serveurs de Google pour la reconnaissance ; JARVIS n'enregistre aucun audio. ",
+        app.voice.engine === "macOS (Speech)"
+          ? "La transcription utilise la reconnaissance vocale de macOS, sur l'appareil quand le Mac le permet (sinon via les serveurs d'Apple) ; JARVIS n'enregistre aucun audio. "
+          : "Dans un navigateur, la transcription utilise le moteur du navigateur (Chrome envoie l'audio à Google) ; JARVIS n'enregistre aucun audio. ",
         "La voix de réponse est la synthèse vocale locale de macOS. Le mot d'activation « Hey Jarvis » n'est pas encore disponible (écoute permanente non implémentée)."))));
   app.core = new Core(canvas); app.syncCore();
 

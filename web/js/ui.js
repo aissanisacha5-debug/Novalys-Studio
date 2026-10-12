@@ -128,6 +128,8 @@ export function md(src) {
   return el("div", { class: "md", html: out.join("") });
 }
 
+window.jarvisNativeToast = (m) => toast(m);
+
 export function toast(msg, kind = "") {
   const t = el("div", { class: "toast " + kind, role: kind === "err" ? "alert" : "status" }, msg);
   $("#toasts").append(t);

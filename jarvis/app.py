@@ -19,7 +19,7 @@ from .permissions import Permissions
 from .projects import Projects, Reminders
 from .providers.base import ProviderManager
 from .providers.claude_code import ClaudeCodeProvider
-from .providers.others import AnthropicAPIProvider, OllamaProvider
+from .providers.others import AnthropicAPIProvider, OllamaProvider, OpenAICompatibleProvider
 from .scheduler import Scheduler
 from .services import Notifier, Secrets, Voice
 from .tasks import TaskManager
@@ -40,12 +40,15 @@ class JarvisApp:
         global _CURRENT
         _CURRENT = self
         self.port = port
+        from .relocation import fix_allowed_dirs, migrate_legacy
+        self.relocated = migrate_legacy()
         self.restored = apply_pending_restore()
         self.db = Database()
         self.migrations = self.db.migrate()
         self.bus = EventBus()
         self.logbook = Logbook(self.db, self.bus)
         self.settings = Settings(self.db)
+        fix_allowed_dirs(self.settings)
         self.permissions = Permissions(self.db, self.settings)
         self.secrets = Secrets()
         self.notifier = Notifier(self.db, self.settings, self.bus)
@@ -55,7 +58,7 @@ class JarvisApp:
         self.projects = Projects(self.db)
         self.reminders = Reminders(self.db)
         self.providers = ProviderManager(self)
-        for p in (ClaudeCodeProvider(self), OllamaProvider(self), AnthropicAPIProvider(self)):
+        for p in (ClaudeCodeProvider(self), OllamaProvider(self), AnthropicAPIProvider(self), OpenAICompatibleProvider(self)):
             self.providers.register(p)
         self.tools = ToolRegistry(self)
         for mod in (files, shell, web, browser, sites, documents, data_tools):
@@ -67,6 +70,8 @@ class JarvisApp:
         self.diagnostics = Diagnostics(self)
         self.backups = Backups(self)
         self.started_at = now()
+        import time as _time
+        self.started_ts = _time.time()
         interrupted = self.tasks.recover()
         self.scheduler.defaults()
         self.logbook.log("demarrage", f"JARVIS {VERSION} démarré" + (f" · {interrupted} tâche(s) interrompue(s)" if interrupted else "")
@@ -193,10 +198,16 @@ class JarvisApp:
     def shutdown(self) -> None:
         self.logbook.log("arret", "Arrêt propre de JARVIS demandé", "info")
         self.scheduler.stop()
-        for tid in self.tasks.running():
+        running = self.tasks.running()
+        for tid in running:
             ev = self.tasks._cancel.get(tid)
             if ev:
                 ev.set()
+        # laisse aux tâches le temps de s'arrêter (et de tuer leurs sous-processus) avant de quitter
+        import time as _time
+        end = _time.time() + 6
+        while self.tasks.running() and _time.time() < end:
+            _time.sleep(0.1)
         self.voice.stop()
         browser.shutdown(self)
         for p in self.db.all("SELECT id, pid FROM processes WHERE stopped_at IS NULL"):

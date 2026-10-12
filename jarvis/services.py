@@ -14,7 +14,8 @@ from .db import Database, now
 from .errors import JarvisError, ValidationError
 
 KEYCHAIN_SERVICE = "studio.novalys.jarvis"
-SECRET_NAMES = {"anthropic_api_key": "Clé API Anthropic", "github_token": "Jeton GitHub",
+SECRET_NAMES = {"anthropic_api_key": "Clé API Anthropic", "openai_compatible_key": "Clé du fournisseur compatible OpenAI",
+                "github_token": "Jeton GitHub",
                 "netlify_token": "Jeton Netlify", "vercel_token": "Jeton Vercel"}
 
 

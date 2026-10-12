@@ -109,6 +109,8 @@ def run_command(ctx: ToolContext, command: str, cwd: Optional[str], timeout_s: i
     max_out = app.settings.get("shell.max_output_chars", 20000)
     env = {k: v for k, v in os.environ.items() if not re.search(r"(?i)(key|token|secret|password|anthropic)", k)}
     env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin:/usr/sbin:/sbin") + ":/opt/homebrew/bin:/usr/local/bin"
+    env["PWD"] = str(workdir)
+    env.pop("OLDPWD", None)
     t0 = time.time()
     proc = subprocess.Popen(argv, cwd=str(workdir), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             stdin=subprocess.DEVNULL, env=env, start_new_session=True)
