@@ -30,7 +30,7 @@ Toujours soumis à accord : effacer beaucoup de fichiers, actions irréversibles
 
 ## Autorisations persistantes
 - **Dossiers** lecture / écriture : conservés après redémarrage ; révocation ou passage en lecture seule immédiats ; ajout par le sélecteur de dossiers macOS (application) avec une confirmation. Une lecture ne devient jamais une écriture.
-- **« Autoriser et ne plus demander ici »** sur une demande d'accord : crée une autorisation préalable limitée à un dossier (suppression) ou à une commande (programme + sous-commande). Jamais pour un envoi, une publication, un achat ou un réglage. Révocable à tout moment.
+- **« Autoriser et ne plus demander ici »** sur une demande d'accord : crée une autorisation préalable limitée à un dossier (suppression) ou à une commande EXACTE (arguments compris ; jamais pour un interpréteur comme python3 ou node). Ignorée si la tâche a lu un contenu suspect. Jamais pour un envoi, une publication, un achat ou un réglage. Révocable à tout moment.
 - **Outils** : chacun peut être désactivé ; un outil désactivé n'est plus proposé au modèle.
 - **macOS** : Documents, Bureau, Téléchargements demandent une fois l'accord pour JARVIS ; macOS le conserve (Réglages Système > Confidentialité et sécurité > Fichiers et dossiers). Micro et Reconnaissance vocale : une fois, au premier usage.
 - **Tout arrêter** : bouton rouge de la page (annule les tâches, coupe la voix, ferme le navigateur piloté), en plus d'« Interrompre » en haut de l'écran.
