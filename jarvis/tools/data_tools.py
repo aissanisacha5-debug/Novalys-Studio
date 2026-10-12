@@ -123,7 +123,14 @@ def h_script(ctx, a):
     s = scripts.get(a["name"])
     if not s:
         raise NotFound("Script non approuvé.", {"scripts_approuves": sorted(scripts)})
-    extra = " ".join(str(x) for x in (a.get("args") or []))
+    import shlex
+    args = [str(x) for x in (a.get("args") or [])]
+    if args and not s.get("allow_args", True):
+        raise ValidationError("Ce script approuvé n'accepte pas d'arguments.")
+    for x in args:
+        if x.startswith("-") or "\n" in x:
+            raise PermissionDenied("Argument refusé : pas d'option (« -… ») ni de saut de ligne dans les arguments d'un script approuvé.", {"argument": x})
+    extra = " ".join(shlex.quote(x) for x in args)       # chaque argument reste un seul argument (exécution sans shell)
     return run_command(ctx, (s["command"] + (" " + extra if extra else "")).strip(), s.get("cwd"), int(s.get("timeout_s", 300)))
 
 

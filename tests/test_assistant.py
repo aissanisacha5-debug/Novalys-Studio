@@ -94,6 +94,10 @@ class AssistantTests(unittest.TestCase):
         self.assertIn("bonjour Sacha", r["result"]["output"])
         with self.assertRaises(NotFound):
             self.call("script_executer", name="inconnu")
+        with self.assertRaises(PermissionDenied):
+            self.call("script_executer", name="bonjour", args=["--version"])
+        r = self.call("script_executer", name="bonjour", args=["a b"])
+        self.assertIn("bonjour a b", r["result"]["output"])
 
     def test_synthese_vocale_et_arret_immediat(self):
         import shutil
