@@ -1,5 +1,13 @@
 # Journal des versions
 
+## 0.4.0 — 2026-10-12 (prompt 5)
+- Voix : transcription affichée en direct et corrigeable avant envoi (ou envoi automatique), mains libres (micro rouvert après chaque réponse lue, « stop » pour sortir), mot d'activation « Jarvis » natif avec reconnaissance SUR L'APPAREIL uniquement, écoute suspendue pendant que JARVIS parle, « Couper le micro » arrête toute écoute.
+- États du noyau : prêt, écoute, transcription, réflexion, outil, tâche, JARVIS parle, accord, terminé, erreur, service indisponible.
+- Mémoire : désactivable ; informations temporaires liées à une conversation et effacées avec elle ; règles de mémorisation (hypothèses, données sensibles).
+- Tâches : modification (titre, échéance avec heure, priorité), notification d'échéance.
+- Outils : date et heure, notes, scripts approuvés, consultation et modification des réglages non sensibles.
+- Fournisseur actif affiché dans la conversation ; migration 0003.
+
 ## 0.3.0 — 2026-10-12 (prompt 4)
 - Application macOS native `JARVIS.app` (Swift, WebKit) : fenêtre, icône, menus, téléchargements, liens externes vers le navigateur, page d'état si le service ne répond pas, arrêt propre (y compris SIGTERM).
 - Image disque `JARVIS-<version>.dmg` vérifiée ; construction reproductible (`build`), installation (`install`) avec conservation de l'ancienne version.

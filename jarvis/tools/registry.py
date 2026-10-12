@@ -24,6 +24,7 @@ TYPES = {
     "boolean": bool,
     "array": list,
     "object": dict,
+    "scalar": (str, int, float, bool),
 }
 
 # États de résultat (partie 2.3)

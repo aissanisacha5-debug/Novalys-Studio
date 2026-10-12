@@ -1,5 +1,5 @@
 // JARVIS — interface principale : navigation, rail d'activité, état du noyau, voix, raccourcis.
-import { get, post, stream } from "./api.js";
+import { get, patch, post, stream } from "./api.js";
 import { $, btn, clear, confirmCard, el, handleError, hhmm, icon, status, toast } from "./ui.js";
 import { Core } from "./core.js";
 import { Voice } from "./voice.js";
@@ -28,16 +28,19 @@ export const app = {
   go(hash) { location.hash = hash; },
   setCore(state, transient = false) {
     for (const c of [this.core, this.mini]) c?.set(state);
-    const lab = { attente: "En attente", ecoute: "Écoute active", reflexion: "Réflexion", outil: "Utilise un outil", tache: "Tâche en cours",
-      autorisation: "Attend votre accord", erreur: "Erreur", termine: "Réponse terminée" }[state];
+    const lab = { attente: "Prêt", ecoute: "Écoute active", transcription: "Transcription en cours", reflexion: "Réflexion", outil: "Utilise un outil",
+      tache: "Tâche en cours", parle: "JARVIS parle", autorisation: "Attend votre accord", erreur: "Erreur", termine: "Terminé",
+      hors_ligne: "Service indisponible" }[state];
     const b = $("#core-badge"); b.textContent = lab;
-    b.className = "badge " + ({ autorisation: "wait", erreur: "err", attente: "plain", termine: "plain" }[state] || "ok");
+    b.className = "badge " + ({ autorisation: "wait", erreur: "err", hors_ligne: "err", attente: "plain", termine: "plain" }[state] || "ok");
     clearTimeout(this.transient);
     if (transient) this.transient = setTimeout(() => this.syncCore(), 2600);
     this.emit({ type: "core", state, label: lab });
   },
   syncCore() {
-    if (this.voice?.listening) return this.setCore("ecoute");
+    if (this.offline) return this.setCore("hors_ligne");
+    if (this.voice?.listening) return this.setCore(this.voice.interim ? "transcription" : "ecoute");
+    if (this.voice?.speaking || this.state?.core?.speaking) return this.setCore("parle");
     const s = this.state?.core?.state || "attente";
     this.setCore(s);
   },
@@ -120,9 +123,12 @@ async function refreshState() {
   } catch (e) {
     $("#prov-label").textContent = "Service local injoignable";
     $("#prov-dot").className = "dot err";
-    app.setCore("erreur");
+    app.offline = true;
+    app.setCore("hors_ligne");
     return;
   }
+  app.offline = false;
+  app.voice?.applySettings(app.state.settings?.voice);
   const s = app.state;
   $("#ver").textContent = "v" + s.version;
   $("#prov-label").textContent = s.provider ? (s.provider.available ? s.provider.label : `${s.provider.label} indisponible`) : "Aucun fournisseur IA";
@@ -137,6 +143,7 @@ async function refreshState() {
 }
 
 function onEvent(ev) {
+  if (ev.type === "voice") { if (app.voice) app.voice.speaking = !!ev.speaking; app.syncCore(); }
   if (ev.type === "activity") {
     const map = { reflexion: "reflexion", outil: "outil", autorisation: "autorisation", erreur: "erreur", termine: "termine" };
     if (map[ev.state]) app.setCore(map[ev.state], ev.state === "termine" || ev.state === "erreur");
@@ -172,7 +179,16 @@ function boot() {
   $("#menu-btn").append(icon("menu"));
   $("#menu-btn").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
   $("#stop-all").addEventListener("click", stopAll);
-  $("#mic-stop").addEventListener("click", () => app.voice?.stopListening());
+  $("#mic-stop").addEventListener("click", async () => {
+    // Couper le micro coupe TOUTE écoute : demande en cours, mains libres et mot d'activation.
+    const v = app.voice; if (!v) return;
+    v.stopListening();
+    if (v.handsFree || v.wakeActive) {
+      try { await patch("/api/settings", { voice: { hands_free: false, wake_word: { enabled: false } } }); } catch (e) { handleError(e); }
+      v.applySettings({ ...(app.state?.settings?.voice || {}), hands_free: false, wake_word: { enabled: false } });
+      toast("Micro coupé : mains libres et mot d'activation désactivés.");
+    }
+  });
   app.mini = new Core($("#mini-core"), { mini: true });
   app.voice = new Voice(app);
   shortcuts();

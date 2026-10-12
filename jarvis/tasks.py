@@ -231,6 +231,58 @@ class TaskManager:
         self.app.logbook.log("tache_reprise", f"Reprise de la tâche #{tid}", "info", tid)
         return self.start(tid)
 
+    def update(self, tid: int, title: Optional[str] = None, objective: Optional[str] = None, due_date: Any = "inchange",
+               priority: Optional[int] = None) -> Dict[str, Any]:
+        t = self.get(tid)
+        if t["status"] in ("terminee", "annulee"):
+            raise ValidationError(f"Tâche déjà {t['status']} : modification impossible.")
+        sets, params = [], []
+        if title is not None:
+            if not title.strip():
+                raise ValidationError("Titre vide.")
+            sets.append("title=?"); params.append(title.strip()[:140])
+        if objective is not None and objective.strip():
+            sets.append("objective=?"); params.append(objective.strip())
+        if due_date != "inchange":
+            if due_date:
+                import datetime as _dt
+                try:
+                    _dt.datetime.fromisoformat(str(due_date))
+                except ValueError:
+                    raise ValidationError("Échéance invalide (AAAA-MM-JJ ou AAAA-MM-JJTHH:MM).")
+            sets.append("due_date=?"); params.append(due_date or None)
+            sets.append("notified_due=0")
+        if priority is not None:
+            if int(priority) not in (1, 2, 3):
+                raise ValidationError("Priorité : 1 (basse), 2 (normale) ou 3 (haute).")
+            sets.append("priority=?"); params.append(int(priority))
+        if not sets:
+            return t
+        sets.append("updated_at=?"); params.append(now())
+        self.app.db.execute(f"UPDATE tasks SET {', '.join(sets)} WHERE id=?", params + [tid])
+        self.app.logbook.log("tache_modifiee", f"Tâche #{tid} modifiée", "info", tid)
+        self._publish(tid)
+        return self.get(tid)
+
+    def notify_due(self) -> int:
+        """Notifie une fois chaque tâche ouverte dont l'échéance est atteinte (tant que le service tourne)."""
+        import datetime as _dt
+        nowd = _dt.datetime.now()
+        n = 0
+        for t in self.app.db.all("SELECT id, title, due_date FROM tasks WHERE due_date IS NOT NULL AND notified_due=0 AND kind!='conversation' "
+                                 "AND status NOT IN ('terminee','annulee','echouee')"):
+            try:
+                due = _dt.datetime.fromisoformat(t["due_date"]) if "T" in t["due_date"] else \
+                    _dt.datetime.fromisoformat(t["due_date"] + "T09:00")
+            except ValueError:
+                continue
+            if due <= nowd:
+                self.app.db.execute("UPDATE tasks SET notified_due=1 WHERE id=?", (t["id"],))
+                self.app.notify("rappel", "Échéance atteinte", t["title"])
+                self.app.logbook.log("echeance", f"Échéance atteinte : {t['title']}", "attention", t["id"])
+                n += 1
+        return n
+
     def complete_todo(self, tid: int) -> Dict[str, Any]:
         t = self.get(tid)
         if t["kind"] != "todo":

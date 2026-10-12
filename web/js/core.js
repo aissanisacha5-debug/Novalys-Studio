@@ -11,7 +11,10 @@ const COLORS = {
   champagne: tokenRGB("--champagne", [215, 188, 131]), amber: tokenRGB("--amber", [244, 184, 96]), red: tokenRGB("--danger", [255, 93, 104]),
 };
 const STATES = {
-  attente:      { label: "En attente",           c: "emerald",   energy: 0.18, speed: 0.15, pulse: 0.25, arcs: 0 },
+  attente:      { label: "Prêt",                 c: "emerald",   energy: 0.18, speed: 0.15, pulse: 0.25, arcs: 0 },
+  transcription:{ label: "Transcription",         c: "bright",    energy: 0.5,  speed: 0.4,  pulse: 0.8,  arcs: 1 },
+  parle:        { label: "JARVIS parle",          c: "emerald",   energy: 0.5,  speed: 0.3,  pulse: 1.2,  arcs: 0 },
+  hors_ligne:   { label: "Service indisponible",  c: "red",       energy: 0.1,  speed: 0.05, pulse: 0.1,  arcs: 0 },
   ecoute:       { label: "Écoute active",         c: "bright",    energy: 0.55, speed: 0.3,  pulse: 1.0,  arcs: 1 },
   reflexion:    { label: "Réflexion",             c: "emerald",   energy: 0.45, speed: 0.55, pulse: 0.35, arcs: 2 },
   outil:        { label: "Utilise un outil",      c: "bright",    energy: 0.7,  speed: 1.1,  pulse: 0.3,  arcs: 3, focus: true },

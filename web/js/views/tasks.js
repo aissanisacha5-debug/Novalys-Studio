@@ -1,6 +1,6 @@
 // Centre de tâches : liste filtrée, création (manuelle ou exécutée par un agent), détail avec étapes réelles,
 // pause / reprise / annulation, confirmations, sources consultées, consommation.
-import { get, post } from "../api.js";
+import { get, patch, post } from "../api.js";
 import { btn, confirmCard, el, empty, errorBox, field, input, loading, md, modal, select, status, textarea, when } from "../ui.js";
 
 const FILTERS = [["ouvertes", "Ouvertes"], ["en_cours", "En cours"], ["attente_autorisation", "À valider"], ["terminee", "Terminées"], ["echouee", "Échouées"], ["bloquee", "Bloquées"], ["annulee", "Annulées"], ["", "Toutes"]];
@@ -35,10 +35,19 @@ function actions(t, reload) {
   const a = el("div", { class: "actions", style: { display: "flex", gap: "4px", justifyContent: "flex-end" } });
   const act = (label, path, ic, cls = "sm ghost") => btn(label, async () => { await post(`/api/tasks/${t.id}/${path}`); reload(); }, { cls, icon: ic });
   if (t.kind === "todo" && !["terminee", "annulee"].includes(t.status)) a.append(act("Terminer", "complete", "check"));
+  if (!["terminee", "annulee"].includes(t.status)) a.append(btn("Modifier", () => editModal(t, reload), { cls: "sm ghost", icon: "edit" }));
   if (t.status === "en_cours") a.append(act("Pause", "pause", "pause"));
   if (["pause", "interrompue", "bloquee", "echouee", "attente_reponse"].includes(t.status) && t.kind !== "todo") a.append(act("Reprendre", "resume", "play"));
   if (!["terminee", "annulee", "echouee"].includes(t.status)) a.append(act("Annuler", "cancel", "x"));
   return a;
+}
+
+function editModal(t, reload) {
+  const title = input({ value: t.title }), due = input({ type: "datetime-local", value: (t.due_date || "").slice(0, 16).replace(/^(\d{4}-\d\d-\d\d)$/, "$1T09:00") });
+  const prio = select([[3, "Haute"], [2, "Normale"], [1, "Basse"]], t.priority);
+  modal("Modifier la tâche", el("div", { class: "form" }, field("Titre", title), el("div", { class: "form-row" }, field("Échéance", due), field("Priorité", prio)),
+    el("p", { class: "small faint" }, "Une notification macOS est envoyée à l'échéance si JARVIS (ou son service) est en marche.")),
+    ["close", (close) => btn("Enregistrer", async () => { await patch(`/api/tasks/${t.id}`, { title: title.value, due_date: due.value || null, priority: Number(prio.value) }); close(); reload(); }, { cls: "primary" })]);
 }
 
 function createModal(app, reload) {
@@ -46,7 +55,7 @@ function createModal(app, reload) {
   const obj = textarea({ placeholder: "Objectif détaillé (facultatif pour une tâche manuelle)" });
   const exec = el("input", { type: "checkbox" });
   const prio = select([[3, "Haute"], [2, "Normale"], [1, "Basse"]], 2);
-  const due = input({ type: "date" });
+  const due = input({ type: "datetime-local" });
   const agent = select([["general", "Orchestrateur"], ["developpeur", "Développeur"], ["recherche", "Recherche"], ["fichiers", "Fichiers"], ["redaction", "Rédaction"], ["projet", "Gestion de projet"], ["prospection", "Prospection"], ["qualite", "Contrôle qualité"]], "general");
   const projSel = select([["", "Aucun projet"]], "");
   get("/api/projects").then((ps) => ps.forEach((p) => projSel.append(el("option", { value: p.id }, p.name))));

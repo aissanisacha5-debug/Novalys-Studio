@@ -71,7 +71,10 @@ export async function render(view, params, app) {
     }
     let c;
     try { c = await get(`/api/conversations/${convId}`); } catch (e) { return clear(inner).append(errorBox(e)); }
+    const prov = app.state?.provider;
     const sub = document.querySelector("#page-sub"); clear(sub).append(c.title + " ",
+      prov ? el("span", { class: "badge " + (prov.available ? "plain" : "err"), title: "Le texte de la conversation est envoyé à ce fournisseur pour générer les réponses." },
+        `${prov.label}${prov.available ? "" : " — indisponible"}`) : null, " ",
       btn("Renommer", async () => {
         const i = input({ value: c.title });
         modal("Renommer la conversation", i, ["close", (close) => btn("Enregistrer", async () => { await patch(`/api/conversations/${c.id}`, { title: i.value }); close(); loadMessages(); loadList(); }, { cls: "primary" })]);

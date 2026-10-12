@@ -105,8 +105,12 @@ final class Service {
     }
 }
 
-// MARK: - Dictée native (Speech)
+// MARK: - Dictée native (Speech) et mot d'activation
 
+/// Deux modes, toujours visibles dans l'interface (bandeau) et désactivables à tout moment :
+/// - « commande » : une phrase, déclenchée par le bouton micro (fin après 1,8 s de silence) ;
+/// - « mot d'activation » : écoute continue UNIQUEMENT si la reconnaissance se fait sur l'appareil
+///   (aucun audio envoyé), détection du mot « Jarvis », puis capture de la demande qui suit.
 final class NativeVoice: NSObject {
     weak var web: WKWebView?
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "fr-FR"))
@@ -114,38 +118,96 @@ final class NativeVoice: NSObject {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var silence: DispatchWorkItem?
-
-    /// Fin de phrase : 1,8 s sans nouveau mot → fin de l'audio → résultat final.
-    private func armSilenceTimer() {
-        silence?.cancel()
-        let w = DispatchWorkItem { [weak self] in self?.finish() }
-        silence = w
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8, execute: w)
-    }
+    private var restart: DispatchWorkItem?
+    private var wakeEnabled = false
+    private var wakePaused = false
+    private var wakePhrase = "jarvis"
+    private var awake = false          // mot détecté : on capture la demande
+    private var generation = 0         // invalide les rappels d'une session précédente
 
     func send(_ event: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: event), let json = String(data: data, encoding: .utf8) else { return }
         DispatchQueue.main.async { self.web?.evaluateJavaScript("window.jarvisNativeVoice && window.jarvisNativeVoice.emit(\(json))") }
     }
 
-    func start() {
+    private func authorize(_ then: @escaping () -> Void) {
         SFSpeechRecognizer.requestAuthorization { status in
             guard status == .authorized else {
-                self.send(["type": "error", "error": "not-allowed", "message": "Reconnaissance vocale non autorisée : Réglages Système > Confidentialité > Reconnaissance vocale > JARVIS."])
+                self.send(["type": "error", "error": "not-allowed", "message": "Reconnaissance vocale non autorisée : Réglages Système > Confidentialité et sécurité > Reconnaissance vocale > JARVIS."])
                 return
             }
             AVCaptureDevice.requestAccess(for: .audio) { granted in
                 guard granted else {
-                    self.send(["type": "error", "error": "not-allowed", "message": "Micro non autorisé : Réglages Système > Confidentialité > Microphone > JARVIS."])
+                    self.send(["type": "error", "error": "not-allowed", "message": "Micro non autorisé : Réglages Système > Confidentialité et sécurité > Microphone > JARVIS."])
                     return
                 }
-                DispatchQueue.main.async { self.begin() }
+                DispatchQueue.main.async { then() }
             }
         }
     }
 
-    private func begin() {
-        stop(silent: true)
+    private static func fold(_ s: String) -> String {
+        s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "fr_FR"))
+    }
+
+    // MARK: commande unique (bouton micro)
+    func start() {
+        wakePaused = true
+        authorize { self.begin(wake: false) }
+    }
+
+    func finish() { request?.endAudio() }
+
+    // MARK: mot d'activation
+    func startWake(phrase: String) {
+        wakePhrase = NativeVoice.fold(phrase.isEmpty ? "jarvis" : phrase)
+        authorize {
+            guard let rec = self.recognizer, rec.supportsOnDeviceRecognition else {
+                self.send(["type": "error", "error": "wake-unavailable",
+                           "message": "Mot d'activation indisponible : ce Mac ne peut pas reconnaître le français sur l'appareil, et JARVIS n'envoie pas d'écoute continue sur Internet. Utilisez le bouton micro ou le raccourci Alt+Espace."])
+                return
+            }
+            self.wakeEnabled = true
+            self.wakePaused = false
+            self.begin(wake: true)
+        }
+    }
+
+    func stopWake() {
+        wakeEnabled = false
+        awake = false
+        stopEngine()
+        send(["type": "wake_stopped"])
+    }
+
+    func pauseWake(_ paused: Bool) {
+        wakePaused = paused
+        guard wakeEnabled else { return }
+        if paused { if !awake && task != nil { stopEngine() } } else if task == nil { begin(wake: true) }
+    }
+
+    private func armSilence(_ seconds: Double, _ block: @escaping () -> Void) {
+        silence?.cancel()
+        let w = DispatchWorkItem(block: block)
+        silence = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: w)
+    }
+
+    private func stopEngine() {
+        generation += 1
+        silence?.cancel()
+        restart?.cancel()
+        if engine.isRunning { engine.stop() }
+        engine.inputNode.removeTap(onBus: 0)
+        request?.endAudio()
+        task?.cancel()
+        task = nil
+        request = nil
+    }
+
+    private func begin(wake: Bool) {
+        stopEngine()
+        let gen = generation
         guard let rec = recognizer, rec.isAvailable else {
             send(["type": "error", "error": "network", "message": "Reconnaissance vocale indisponible pour le français sur ce Mac."]); return
         }
@@ -154,41 +216,74 @@ final class NativeVoice: NSObject {
         if rec.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
         request = req
         let input = engine.inputNode
-        let fmt = input.outputFormat(forBus: 0)
-        input.installTap(onBus: 0, bufferSize: 1024, format: fmt) { buf, _ in req.append(buf) }
+        input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buf, _ in req.append(buf) }
         engine.prepare()
         do { try engine.start() } catch {
             send(["type": "error", "error": "audio-capture", "message": "Micro indisponible : \(error.localizedDescription)"]); return
         }
-        send(["type": "start", "onDevice": req.requiresOnDeviceRecognition])
-        task = rec.recognitionTask(with: req) { result, error in
+        awake = false
+        send(["type": wake ? "wake_listening" : "start", "onDevice": req.requiresOnDeviceRecognition])
+        var commandStart: String.Index? = nil
+        task = rec.recognitionTask(with: req) { [weak self] result, error in
+            guard let self = self, gen == self.generation else { return }
             if let r = result {
-                if !r.isFinal { DispatchQueue.main.async { self.armSilenceTimer() } }
-                self.send(["type": "result", "text": r.bestTranscription.formattedString, "final": r.isFinal,
-                           "confidence": r.bestTranscription.segments.last.map { Double($0.confidence) } ?? 0])
-                if r.isFinal { self.stop(silent: false) }
+                let text = r.bestTranscription.formattedString
+                if wake && !self.awake {
+                    let folded = NativeVoice.fold(text)
+                    if let range = folded.range(of: self.wakePhrase, options: .backwards) {
+                        self.awake = true
+                        let offset = folded.distance(from: folded.startIndex, to: range.upperBound)
+                        commandStart = text.index(text.startIndex, offsetBy: min(offset, text.count))
+                        NSSound(named: "Tink")?.play()
+                        self.send(["type": "wake_detected"])
+                        self.armSilence(6) { self.endCommand(text: "", wake: true) }
+                    }
+                    return
+                }
+                let command = wake ? String(text[(commandStart ?? text.startIndex)...]).trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+                                   : text
+                self.send(["type": "result", "text": command, "final": false])
+                self.armSilence(1.8) { self.endCommand(text: command, wake: wake) }
+                if r.isFinal && !wake { self.endCommand(text: command, wake: false) }
             }
-            if let e = error as NSError?, result == nil || result?.isFinal == false {
-                if e.code != 216 && e.code != 1110 { self.send(["type": "error", "error": "no-speech", "message": e.localizedDescription]) }
-                self.stop(silent: false)
+            if let e = error as NSError?, result == nil {
+                if wake {
+                    // fin de session de reconnaissance (limite de durée) : on relance l'écoute du mot d'activation
+                    DispatchQueue.main.async { if self.wakeEnabled && !self.wakePaused { self.begin(wake: true) } }
+                } else {
+                    if e.code != 216 && e.code != 1110 { self.send(["type": "error", "error": "no-speech", "message": e.localizedDescription]) }
+                    self.endCommand(text: "", wake: false)
+                }
             }
         }
-        // Sécurité : l'écoute ne dure jamais plus de 30 s ; sans aucune parole, arrêt au bout de 8 s.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.finish() }
-        let idle = DispatchWorkItem { [weak self] in self?.finish() }
-        silence = idle
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: idle)
+        if wake {
+            // les sessions de reconnaissance sont limitées dans le temps : relance périodique tant qu'aucun mot n'est détecté
+            let w = DispatchWorkItem { [weak self] in
+                guard let self = self, gen == self.generation, !self.awake, self.wakeEnabled, !self.wakePaused else { return }
+                self.begin(wake: true)
+            }
+            restart = w
+            DispatchQueue.main.asyncAfter(deadline: .now() + 50, execute: w)
+        } else {
+            armSilence(8) { self.endCommand(text: "", wake: false) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in if gen == self?.generation { self?.finish() } }
+        }
     }
 
-    func finish() { request?.endAudio() }
+    private func endCommand(text: String, wake: Bool) {
+        stopEngine()
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !t.isEmpty { send(["type": "result", "text": t, "final": true, "confidence": 0]) }
+        send(["type": "end", "wake": wake])
+        awake = false
+        // après une demande, l'écoute du mot d'activation reprend quand l'interface la relance (fin de réponse vocale)
+        if wake && wakeEnabled && t.isEmpty && !wakePaused { begin(wake: true) }
+        if !wake && wakeEnabled { wakePaused = true }
+    }
 
     func stop(silent: Bool) {
-        silence?.cancel()
-        if engine.isRunning { engine.stop(); engine.inputNode.removeTap(onBus: 0) }
-        request?.endAudio()
-        task?.cancel()
-        task = nil
-        request = nil
+        stopEngine()
+        awake = false
         if !silent { send(["type": "end"]) }
     }
 }
@@ -221,6 +316,10 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
             switch cmd {
             case "start": voice.start()
             case "finish": voice.finish()
+            case "wake_start": voice.startWake(phrase: body["phrase"] as? String ?? "jarvis")
+            case "wake_stop": voice.stopWake()
+            case "wake_pause": voice.pauseWake(true)
+            case "wake_resume": voice.pauseWake(false)
             default: voice.stop(silent: false)
             }
         } else if message.name == "jarvisApp", cmd == "open", let s = body["url"] as? String, let u = URL(string: s),

@@ -69,7 +69,8 @@ def h_task_done(ctx, a):
 def h_mem_save(ctx, a):
     m = ctx.app.memory.add(a["content"], a.get("type", "connaissance"), f"conversation (tâche #{ctx.task_id})",
                            a.get("nature", "fait"), a.get("reason", ""), a.get("confidence"), _project_id(ctx.app, a.get("project")),
-                           expires_at=a.get("expires_at"))
+                           expires_at=a.get("expires_at"),
+                           conversation_id=ctx.conversation_id if a.get("type") == "temporaire" else None)
     return {"memory_id": m["id"], "duplicate": bool(m.get("duplicate_of_existing")), "status": m["status"],
             "possible_conflicts": m.get("possible_conflicts", [])}
 
@@ -81,6 +82,93 @@ def v_mem_save(ctx, a, r):
 def h_mem_search(ctx, a):
     rows = ctx.app.memory.search(a.get("query", ""), a.get("type", ""), _project_id(ctx.app, a.get("project")), a.get("max", 15))
     return {"results": [{k: r[k] for k in ("id", "type", "nature", "content", "source", "reason", "status", "project_name", "updated_at")} for r in rows]}
+
+
+def h_task_update(ctx, a):
+    t = ctx.app.tasks.update(a["task_id"], a.get("title"), a.get("objective"), a["due_date"] if "due_date" in a else "inchange",
+                             a.get("priority"))
+    return {"task_id": t["id"], "title": t["title"], "due_date": t["due_date"], "priority": t["priority"], "status": t["status"]}
+
+
+# -- date, notes, scripts, réglages -----------------------------------------------------
+JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+
+
+def h_now(ctx, a):
+    from zoneinfo import ZoneInfo
+    n = dt.datetime.now(ZoneInfo("Europe/Paris"))
+    return {"iso": n.isoformat(timespec="seconds"), "date": n.date().isoformat(), "heure": n.strftime("%H:%M"),
+            "texte": f"{JOURS[n.weekday()]} {n.day} {MOIS[n.month - 1]} {n.year}, {n.strftime('%H h %M')}",
+            "semaine_iso": n.isocalendar()[1], "fuseau": "Europe/Paris", "_state": CONFIRME}
+
+
+def h_note(ctx, a):
+    folder = ctx.app.permissions.resolve_path(str(paths.workspace_dir() / "notes"), write=True)
+    folder.mkdir(parents=True, exist_ok=True)
+    p = folder / f"{time.strftime('%Y-%m-%d-%H%M%S')}-{_slug(a['title'])}.md"
+    p.write_text(f"# {a['title']}\n\n_{time.strftime('%Y-%m-%d %H:%M')}_\n\n{a['content']}\n", encoding="utf-8")
+    return {"path": str(p), "bytes": p.stat().st_size}
+
+
+def v_note(ctx, a, r):
+    from pathlib import Path as _P
+    p = _P(r["path"])
+    return (CONFIRME, "note relue") if p.exists() and a["content"] in p.read_text(encoding="utf-8") else (ECHOUE, "note absente")
+
+
+def h_script(ctx, a):
+    from .shell import run_command
+    scripts = ctx.app.settings.get("scripts_approuves") or {}
+    s = scripts.get(a["name"])
+    if not s:
+        raise NotFound("Script non approuvé.", {"scripts_approuves": sorted(scripts)})
+    extra = " ".join(str(x) for x in (a.get("args") or []))
+    return run_command(ctx, (s["command"] + (" " + extra if extra else "")).strip(), s.get("cwd"), int(s.get("timeout_s", 300)))
+
+
+def v_script(ctx, a, r):
+    return (CONFIRME, "code de sortie 0") if r["exit_code"] == 0 else (ECHOUE, f"code de sortie {r['exit_code']}")
+
+
+SETTABLE = {"assistant.detail_level": ("court", "normal", "detaille"), "voice.volume": float, "voice.rate": int, "voice.voice": str,
+            "voice.auto_speak": bool, "appearance.animations": ("normales", "reduites", "aucune"), "notifications.enabled": bool}
+
+
+def h_settings_get(ctx, a):
+    s = ctx.app.settings
+    return {"modifiables_par_jarvis": {k: s.get(k) for k in SETTABLE}, "mode": s.get("autonomy.mode"),
+            "fournisseur_ia": s.get("ai.provider"), "modele": s.get("ai.model"), "memorisation_active": s.get("memory.enabled", True),
+            "_note": "Les réglages de sécurité (mode, dossiers, commandes, connecteurs, budget) ne se changent que par Sacha, dans l'application."}
+
+
+def h_settings_set(ctx, a):
+    key, value = a["key"], a["value"]
+    if key not in SETTABLE:
+        raise PermissionDenied("Ce réglage ne peut pas être modifié par JARVIS (réglage de sécurité ou inconnu).", {"modifiables": sorted(SETTABLE)})
+    rule = SETTABLE[key]
+    if isinstance(value, str) and rule is bool and value.lower() in ("true", "false", "oui", "non"):
+        value = value.lower() in ("true", "oui")
+    if isinstance(value, str) and rule in (int, float):
+        try:
+            value = rule(value.replace(",", "."))
+        except ValueError:
+            raise ValidationError("Nombre attendu.")
+    if rule is int and isinstance(value, float) and value.is_integer():
+        value = int(value)
+    if isinstance(rule, tuple) and value not in rule:
+        raise ValidationError(f"Valeur possible : {', '.join(rule)}.")
+    if rule is float and isinstance(value, (int, float)):
+        value = float(value)
+    if isinstance(rule, type) and not isinstance(value, rule):
+        raise ValidationError(f"Valeur de type {rule.__name__} attendue.")
+    sect, sub = key.split(".")
+    ctx.app.settings.update({sect: {sub: value}}, f"modifié par JARVIS à la demande de Sacha (tâche #{ctx.task_id})")
+    return {"key": key, "value": ctx.app.settings.get(key)}
+
+
+def v_settings_set(ctx, a, r):
+    return (CONFIRME, "réglage relu") if r["value"] == ctx.app.settings.get(a["key"]) else (ECHOUE, "réglage non appliqué")
 
 
 # -- projets -------------------------------------------------------------------------------
@@ -366,7 +454,24 @@ def register(reg) -> None:
                        "reason": P(type="string", required=True, description="pourquoi c'est mémorisé"), "confidence": P(type="number", min=0, max=1),
                        "expires_at": P(type="string", description="AAAA-MM-JJTHH:MM pour une information temporaire"),
                        "project": P(type="string")},
-                      h_mem_save, "faible", "memoire", 15, verify=v_mem_save, verification="présence en base"))
+                      h_mem_save, "faible", "memoire", 15, verify=v_mem_save, verification="présence en base",
+                      available=lambda app: (bool(app.settings.get("memory.enabled", True)), "mémorisation désactivée par Sacha (Mémoire)")))
+    reg.register(Tool("tache_modifier", "Modifier une tâche (titre, objectif, échéance AAAA-MM-JJ ou AAAA-MM-JJTHH:MM, priorité 1-3).",
+                      {"task_id": P(type="integer", required=True), "title": P(type="string"), "objective": P(type="string"),
+                       "due_date": P(type="string"), "priority": P(type="integer", min=1, max=3)}, h_task_update, "faible", "taches", 15))
+    reg.register(Tool("date_heure", "Date, heure et jour actuels (Europe/Paris).", {}, h_now, "faible", "temps", 5))
+    reg.register(Tool("note_creer", "Créer une note Markdown dans ~/JARVIS/notes.",
+                      {"title": P(type="string", required=True), "content": P(type="string", required=True, maxLength=200000)},
+                      h_note, "faible", "documents", 15, verify=v_note, verification="relecture"))
+    reg.register(Tool("script_executer", "Exécuter un script APPROUVÉ par Sacha (liste dans Paramètres), avec arguments éventuels.",
+                      {"name": P(type="string", required=True), "args": P(type="array", maxItems=20)}, h_script, "modere", "terminal", 1900,
+                      verify=v_script, verification="code de sortie",
+                      available=lambda app: (bool(app.settings.get("scripts_approuves")), "aucun script approuvé (Paramètres > Scripts approuvés)")))
+    reg.register(Tool("parametres_consulter", "Consulter les réglages de JARVIS (fournisseur, mode, voix, détail…).", {}, h_settings_get, "faible", "systeme", 5))
+    reg.register(Tool("parametre_modifier", "Modifier un réglage NON sensible (voix, volume, vitesse, lecture auto, détail, animations, notifications).",
+                      {"key": P(type="string", required=True, enum=sorted(SETTABLE)), "value": P(type="scalar", required=True,
+                       description="valeur : texte, nombre ou booléen selon le réglage")},
+                      h_settings_set, "modere", "systeme", 10, verify=v_settings_set, verification="relecture du réglage"))
     reg.register(Tool("memoire_rechercher", "Rechercher dans la mémoire durable.",
                       {"query": P(type="string"), "type": P(type="string"), "project": P(type="string"), "max": P(type="integer", default=15, min=1, max=100)},
                       h_mem_search, "faible", "memoire", 15))

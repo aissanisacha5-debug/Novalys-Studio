@@ -1,7 +1,7 @@
 // Paramètres : apparence, animations, détail des réponses, voix, démarrage, raccourcis, confirmations, autonomie,
 // rétention, budget ; versions de configuration restaurables. Les réglages sensibles demandent une confirmation.
 import { get, patch, post } from "../api.js";
-import { btn, el, errorBox, field, handleError, input, loading, select, toast, toggle, when } from "../ui.js";
+import { btn, el, errorBox, field, handleError, input, loading, modal, select, toast, toggle, when } from "../ui.js";
 
 export async function render(view, params, app) {
   const page = el("div", { class: "page narrow" }, loading());
@@ -11,6 +11,7 @@ export async function render(view, params, app) {
     try { [d, v, svc] = await Promise.all([get("/api/settings"), get("/api/voice"), get("/api/service")]); } catch (e) { return page.replaceChildren(errorBox(e)); }
     const s = d.settings;
     const save = async (p, quiet) => { try { await patch("/api/settings", p); if (!quiet) toast("Réglage enregistré."); app.emit({ type: "settings" }); } catch (e) { handleError(e); setTimeout(load, 800); } };
+    const saveScripts = async (scripts) => { try { await patch("/api/settings", { scripts_approuves: scripts }); load(); } catch (e) { handleError(e); setTimeout(load, 1200); } };
     const sel = (opts, val, onch) => { const x = select(opts, val); x.addEventListener("change", () => onch(x.value)); return x; };
     const num = (val, onch, attrs = {}) => { const x = input({ type: "number", value: val, ...attrs }); x.addEventListener("change", () => onch(Number(x.value))); return x; };
     const range = (val, min, max, step, onch) => { const x = input({ type: "range", min, max, step, value: val }); x.addEventListener("change", () => onch(Number(x.value))); return x; };
@@ -59,6 +60,17 @@ export async function render(view, params, app) {
           field("Budget quotidien ($)", num(s.budget.daily_usd, (x) => save({ budget: { daily_usd: x } }), { min: 0, step: 0.5 })),
           field("Budget mensuel ($)", num(s.budget.monthly_usd, (x) => save({ budget: { monthly_usd: x } }), { min: 0, step: 1 }))),
         toggle("Arrêt automatique en cas de dépassement", s.budget.stop_on_exceed, (x) => save({ budget: { stop_on_exceed: x } }))),
+      sec("Scripts approuvés",
+        el("p", { class: "small muted" }, "Scripts que JARVIS peut lancer à votre demande (outil « script_executer »), toujours via les contrôles du terminal (commande autorisée, dossier autorisé, délai). Ajouter ou retirer un script demande votre confirmation."),
+        Object.keys(s.scripts_approuves || {}).length ? el("div", { class: "list" }, ...Object.entries(s.scripts_approuves).map(([n, d]) => el("div", { class: "row" },
+          el("span", { class: "mono" }, n), el("div", { class: "main-col small" }, el("span", { class: "mono" }, d.command), d.description ? el("div", { class: "d xs" }, d.description) : null),
+          btn("Retirer", async () => { const c = { ...s.scripts_approuves }; delete c[n]; await saveScripts(c); }, { cls: "sm ghost" }))))
+          : el("p", { class: "faint small" }, "Aucun script approuvé."),
+        btn("Ajouter un script", () => {
+          const n = input({ placeholder: "nom-court" }), c = input({ placeholder: "python3 /Users/…/JARVIS/scripts/sauvegarde.py" }), w = input({ placeholder: "dossier de travail (facultatif)" }), d = input({ placeholder: "ce que fait le script" });
+          modal("Approuver un script", el("div", { class: "form" }, field("Nom", n), field("Commande", c), field("Dossier", w), field("Description", d)),
+            ["close", (close) => btn("Demander l'approbation", async () => { close(); await saveScripts({ ...(s.scripts_approuves || {}), [n.value.trim()]: { command: c.value.trim(), cwd: w.value.trim() || undefined, description: d.value.trim() } }); }, { cls: "primary" })]);
+        }, { cls: "sm", icon: "plus" })),
       sec("Journal",
         field("Conserver les événements (jours)", num(s.retention.events_days, (x) => save({ retention: { events_days: x } }), { min: 7, max: 3650 }))),
       sec("Versions de la configuration",

@@ -49,9 +49,13 @@ class Conversations:
             self.db.execute("UPDATE conversations SET project_id=? WHERE id=?", (project_id, cid))
         return self.get(cid)
 
-    def delete(self, cid: int) -> None:
+    def delete(self, cid: int) -> Dict[str, int]:
+        """Supprime la conversation et ses informations TEMPORAIRES ; la mémoire personnelle durable est conservée."""
         self.get(cid)
+        tmp = self.db.execute("DELETE FROM memories WHERE conversation_id=? AND type='temporaire'", (cid,)).rowcount
+        kept = self.db.execute("UPDATE memories SET conversation_id=NULL WHERE conversation_id=?", (cid,)).rowcount
         self.db.execute("DELETE FROM conversations WHERE id=?", (cid,))
+        return {"temporary_memories_deleted": tmp, "memories_kept": kept}
 
     def add_message(self, cid: int, role: str, content: str, meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         ts = now()

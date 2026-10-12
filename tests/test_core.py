@@ -15,7 +15,7 @@ class CoreTests(unittest.TestCase):
         self.env.close()
 
     def test_migrations_et_schema(self):
-        self.assertEqual(self.app.db.schema_version(), "0002_complements")
+        self.assertEqual(self.app.db.schema_version(), "0003_assistant")
         cols = [r["name"] for r in self.app.db.all("PRAGMA table_info(tasks)")]
         self.assertIn("next_action", cols)
         self.assertEqual(self.app.db.one("PRAGMA integrity_check")["integrity_check"], "ok")
@@ -71,7 +71,7 @@ class CoreTests(unittest.TestCase):
         c.close()
         app = self.env.make_app()
         self.app = app
-        self.assertEqual(app.migrations, ["0002_complements"])
+        self.assertEqual(app.migrations, ["0002_complements", "0003_assistant"])
         self.assertEqual(app.memory.search("v0.1")[0]["content"], "Donnée de la v0.1.")
         self.assertTrue(list(paths.backups_dir().glob("*avant-migration*")))
 

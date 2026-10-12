@@ -62,7 +62,7 @@ class Memory:
 
     def add(self, content: str, type: str = "connaissance", source: str = "utilisateur", nature: str = "fait",
             reason: str = "", confidence: Optional[float] = None, project_id: Optional[int] = None,
-            status: str = "valide", expires_at: Optional[str] = None) -> Dict[str, Any]:
+            status: str = "valide", expires_at: Optional[str] = None, conversation_id: Optional[int] = None) -> Dict[str, Any]:
         content = (content or "").strip()
         if not content:
             raise ValidationError("Contenu vide.")
@@ -88,9 +88,9 @@ class Memory:
             status = "a_verifier"
         ts = now()
         mid = self.db.insert(
-            "INSERT INTO memories(type, nature, content, source, reason, confidence, status, project_id, expires_at, created_at, updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-            (type, nature, content, source, reason, confidence, status, project_id, expires_at, ts, ts))
+            "INSERT INTO memories(type, nature, content, source, reason, confidence, status, project_id, expires_at, conversation_id, "
+            "created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (type, nature, content, source, reason, confidence, status, project_id, expires_at, conversation_id, ts, ts))
         if self.logbook:
             self.logbook.log("memoire", f"Mémorisé ({TYPES[type]}) : {content[:120]}" + (" — contradiction possible, à vérifier" if conflicts else ""),
                              "attention" if conflicts else "succes", data={"id": mid, "source": source, "conflits": [c["id"] for c in conflicts]})

@@ -1,4 +1,9 @@
-# Limites connues (v0.3, 2026-10-12)
+# Limites connues (v0.4, 2026-10-12)
+
+## Voix (v0.4)
+- Dictée, mains libres et mot d'activation : **implémentés et compilés, non testés au micro** (je ne peux ni parler ni accorder l'autorisation micro à la place de Sacha). Le mot d'activation exige la reconnaissance du français sur l'appareil ; si le Mac ne la propose pas, l'option se désactive avec un message.
+- Pas de détection de mot d'activation sans application ouverte (l'écoute vit dans la fenêtre JARVIS).
+- Synthèse vocale testée (lecture puis arrêt immédiat, volume réglable).
 
 ## Application
 - Signature **ad hoc** : pas de certificat Apple Developer ni de notarisation (payant) ; premier lancement depuis le .dmg à autoriser (clic droit > Ouvrir).

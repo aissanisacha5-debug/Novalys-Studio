@@ -1,10 +1,25 @@
 # État du projet JARVIS
 
-Mis à jour : 2026-10-12 · **Version 0.3.0** (prompt 4 : application indépendante)
+Mis à jour : 2026-10-12 · **Version 0.4.0** (prompt 5 : assistant vocal, mémoire, tâches) — base : v0.3 application indépendante
+
+## Prompt 5 — résultats vérifiés
+| Fonctionnalité | État | Preuve |
+|---|---|---|
+| Conversation dans l'application (moteur IA réel) | opérationnelle | application installée v0.4 : « Quel jour sommes-nous ? » → outil date_heure → « lundi 12 octobre 2026 » (confirmé) |
+| Transcription corrigeable avant envoi (cadre du Mode vocal / zone de saisie) | opérationnelle (saisie) ; dictée non testée au micro | envoi depuis le cadre testé : « Il est 20 h 32 » |
+| Synthèse vocale + arrêt immédiat | opérationnelle | test automatique (lecture, arrêt, état « parle ») |
+| Mains libres | implémenté, non testé au micro | — |
+| Mot d'activation « Jarvis » (sur l'appareil uniquement) | implémenté et compilé, non testé au micro | — |
+| Mémoire : consulter, ajouter, modifier, supprimer, désactiver ; temporaire effacée avec la conversation | opérationnelle | tests test_assistant, test_core |
+| Tâches : créer, modifier (échéance, priorité), terminer, annuler, notifier l'échéance | opérationnelle | test_assistant (notification unique), migration 0003 sur la base réelle |
+| Outils date/heure, notes, scripts approuvés, réglages (non sensibles seulement) | opérationnelle | test_assistant |
+| États visuels (prêt, écoute, transcription, réflexion, outil, parle, terminé, erreur, service indisponible) | opérationnelle | interface vérifiée dans le navigateur |
+| `python3 jarvis.py check` | **93 tests, 0 échec**, 3 ignorés | 2026-10-12 |
+
 
 ## Application
-- **Application compilée** : `~/Applications/JARVIS.app` (installée) et `Documents/CYPHER/JARVIS/dist/JARVIS.app`
-- **Image d'installation** : `Documents/CYPHER/JARVIS/dist/JARVIS-0.3.0.dmg` (vérifiée par `hdiutil verify`)
+- **Application compilée** : `~/Applications/JARVIS.app` (installée, v0.4.0) et `Documents/CYPHER/JARVIS/dist/JARVIS.app`
+- **Image d'installation** : `Documents/CYPHER/JARVIS/dist/JARVIS-0.4.0.dmg` (vérifiée par `hdiutil verify`)
 - **Lancer sans Claude Code** : double-clic sur JARVIS (Dock, Applications, Spotlight). L'application démarre son service local (127.0.0.1:8765) et affiche l'interface dans sa propre fenêtre.
 - **Compiler** : `python3 jarvis.py build` · **Installer** : `python3 jarvis.py install` · **Tests** : `python3 jarvis.py check` · **Développement** : `python3 jarvis.py dev`
 

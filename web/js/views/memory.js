@@ -1,6 +1,6 @@
 // Mémoire : consultation, recherche, ajout, correction, oubli, export/import, doublons, mémoire par projet.
 import { del, get, patch, post } from "../api.js";
-import { btn, download, el, empty, errorBox, field, handleError, input, loading, modal, select, status, textarea, toast, when } from "../ui.js";
+import { btn, download, el, empty, errorBox, field, handleError, input, loading, modal, select, status, textarea, toast, toggle, when } from "../ui.js";
 
 const TYPES = { preference: "Préférence", info_personnelle: "Info personnelle", objectif: "Objectif", projet: "Projet", decision: "Décision", tache: "Tâche",
   resultat: "Résultat", instruction: "Instruction", connaissance: "Connaissance", operation: "Opération", resume_conversation: "Résumé", reference_document: "Document", temporaire: "Temporaire" };
@@ -14,6 +14,12 @@ export async function render(view, params, app) {
   const typeSel = select([["", "Tous les types"], ...Object.entries(TYPES)], "");
   typeSel.addEventListener("change", () => { type = typeSel.value; load(); });
   const stats = el("div");
+  const st = await get("/api/settings");
+  const memToggle = toggle("JARVIS peut mémoriser de nouvelles informations (désactivé : il consulte seulement la mémoire existante ; vous pouvez toujours ajouter vous-même)",
+    st.settings.memory?.enabled !== false, async (x, i) => {
+      try { await patch("/api/settings", { memory: { enabled: x } }); toast(x ? "Mémorisation activée." : "Mémorisation désactivée."); }
+      catch (e) { i.checked = !x; handleError(e); }
+    });
   view.append(el("div", { class: "page" }, stats,
     el("div", { class: "toolbar" }, search, el("div", { style: { width: "180px" } }, typeSel),
       el("label", { class: "switch small" }, (() => { const c = el("input", { type: "checkbox" }); c.addEventListener("change", () => { obsolete = c.checked; load(); }); return c; })(), "Inclure l'obsolète"),
@@ -22,7 +28,8 @@ export async function render(view, params, app) {
       btn("Exporter", async () => download(`memoire-jarvis-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(await get("/api/memory/export"), null, 2), "application/json"), { cls: "ghost", icon: "download" }),
       btn("Importer", () => importModal(load), { cls: "ghost" }),
       btn("Fusionner les doublons", async () => { const r = await post("/api/memory/cleanup"); toast(`${r.doublons_supprimes} doublon(s) fusionné(s).`); load(); }, { cls: "ghost" })),
-    el("p", { class: "small faint" }, "JARVIS ne mémorise jamais de mot de passe, clé, donnée bancaire ni secret. Chaque souvenir indique sa source et sa raison ; vous pouvez le corriger ou l'oublier."),
+    memToggle,
+    el("p", { class: "small faint" }, "JARVIS ne mémorise jamais de mot de passe, clé, donnée bancaire ni secret. Chaque souvenir indique sa source et sa raison ; vous pouvez le corriger ou l'oublier. Les informations « temporaires » liées à une conversation sont effacées avec elle ; supprimer une conversation ne touche pas au reste de la mémoire."),
     body));
   async function load() {
     body.replaceChildren(loading());

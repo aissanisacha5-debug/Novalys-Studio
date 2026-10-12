@@ -48,9 +48,11 @@ def default_settings() -> Dict[str, Any]:
             "volume": 0.8,
             "rate": 190,
             "auto_speak": False,
+            "auto_send": False,
+            "hands_free": False,
             "max_spoken_chars": 600,
             "stt_engine": "navigateur",
-            "wake_word": {"enabled": False, "phrase": "Hey Jarvis", "sensitivity": 0.5},
+            "wake_word": {"enabled": False, "phrase": "Jarvis"},
         },
         "notifications": {
             "enabled": True,
@@ -77,6 +79,8 @@ def default_settings() -> Dict[str, Any]:
             "default_timeout_s": 60,
         },
         "email": {"mode": "brouillons", "send_enabled": False},
+        "memory": {"enabled": True},
+        "scripts_approuves": {},
         "budget": {"daily_usd": 0.0, "monthly_usd": 0.0, "max_calls_per_day": 300, "stop_on_exceed": True},
         "retention": {"events_days": 180, "keep_audio": False},
         "web": {"search_engine": "duckduckgo_html", "max_pages_per_task": 15, "user_agent": "JARVIS/0.1 (assistant personnel; usage raisonnable)"},
@@ -95,6 +99,7 @@ SENSITIVE_KEYS = {
     "confirmations.moderate_needs_confirmation",
     "connectors",
     "plugins_enabled",
+    "scripts_approuves",
     "web",
 }
 

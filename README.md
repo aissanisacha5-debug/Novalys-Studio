@@ -21,7 +21,7 @@ Il comprend une demande, planifie, agit avec de vrais outils, **vérifie** le r�
 - **Mémoire** durable, consultable, corrigeable, exportable ; jamais de secret.
 - **Agence** : CRM de CYPHER en lecture seule, revenus confirmés vs prévisions, prospection assistée (brouillons uniquement).
 - **E-mails / agenda** via les connecteurs Gmail et Google Agenda (à activer) : lecture et brouillons, aucun envoi.
-- **Voix** : dictée native macOS et réponses lues par une voix macOS, micro coupé par défaut.
+- **Voix** : dictée native macOS (corrigeable avant envoi), réponses lues, mains libres et mot d'activation « Jarvis » sur l'appareil (optionnels), micro coupé par défaut. Voir [docs/VOICE_AND_MEMORY.md](docs/VOICE_AND_MEMORY.md).
 
 ## Documentation
 - [PROJECT_STATUS.md](PROJECT_STATUS.md) — état, critères de livraison et preuves
