@@ -1,9 +1,15 @@
-# Limites connues (v0.2, 2026-10-12)
+# Limites connues (v0.3, 2026-10-12)
+
+## Application
+- Signature **ad hoc** : pas de certificat Apple Developer ni de notarisation (payant) ; premier lancement depuis le .dmg à autoriser (clic droit > Ouvrir).
+- Python 3 d'Apple requis (non embarqué) ; architecture Apple Silicon (arm64) uniquement.
+- Je n'ai pas pu regarder la fenêtre native moi-même (pas d'accès à l'écran) : son fonctionnement est prouvé par la connexion de l'interface au service (« fenêtres connectées : 1 ») et par une vraie conversation faite à travers le service lancé par l'application. L'interface elle-même a été vérifiée page par page dans un navigateur.
+- La dictée native n'a pas été essayée au micro (je ne peux pas parler).
 
 Rien n'est caché : chaque limite est visible aussi dans l'interface (« indisponible », « non vérifié »).
 
 ## IA
-- **Seul fournisseur actif : Claude via Claude Code** (abonnement). Pas de clé API. Chaque échange consomme l'usage de l'abonnement ; si la limite de l'abonnement est atteinte, JARVIS l'affiche comme une erreur du fournisseur.
+- **Fournisseur actif : Claude via Claude Code** (abonnement, en arrière-plan). Limite d'usage atteinte le 2026-10-12 pendant les tests : JARVIS l'affiche clairement et met la tâche en attente. Autres fournisseurs (compatible OpenAI, Anthropic, Ollama) prêts mais non configurés.
 - Latence : 4 à 15 s par tour de réflexion ; une tâche à plusieurs étapes prend donc de quelques secondes à quelques minutes.
 - Ollama et l'API Anthropic sont implémentés mais **indisponibles** (non installé / pas de clé).
 - Recherche sémantique (embeddings) : **non implémentée** ; la recherche plein texte (FTS5) est utilisée.
@@ -17,7 +23,7 @@ Rien n'est caché : chaque limite est visible aussi dans l'interface (« indispo
 ## Mac
 - Pas de contrôle de l'interface des autres applications (accessibilité non accordée, volontairement). JARVIS sait ouvrir une application, un fichier, une adresse, notifier, parler.
 - Notifications macOS envoyées via `osascript` : elles apparaissent sous « Éditeur de script » ; si rien ne s'affiche, autoriser dans Réglages Système > Notifications.
-- Rappels et automatisations : ne tournent que lorsque JARVIS est ouvert (pas de lancement au démarrage du Mac sans votre accord).
+- Rappels et automatisations : tournent tant que le service tourne ; avec le démarrage automatique (optionnel), même application quittée. Jamais pendant la veille ni Mac éteint.
 
 ## Navigateur
 - Navigateur piloté (Chrome sans interface) : pages JavaScript, formulaires, liens, captures — **opérationnel** (testé sur httpbin.org). Profil vierge : pas d'accès aux sites où Sacha est connecté (volontaire).
@@ -40,5 +46,5 @@ Rien n'est caché : chaque limite est visible aussi dans l'interface (« indispo
 
 ## Divers
 - Une seule personne, un seul Mac ; pas d'accès distant ni mobile (prévu dans la feuille de route, avec authentification forte).
-- Fenêtre : Chrome en mode application (pas d'application native Swift en v0.1).
+- Fenêtre : application native (WebKit) depuis la v0.3 ; Chrome reste utilisé pour le PDF et le navigateur piloté.
 - Python 3.9 système (LibreSSL 2.8.3) : suffisant aujourd'hui ; une version plus récente serait préférable à terme.

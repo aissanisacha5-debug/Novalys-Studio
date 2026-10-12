@@ -1,5 +1,15 @@
 # Journal des versions
 
+## 0.3.0 — 2026-10-12 (prompt 4)
+- Application macOS native `JARVIS.app` (Swift, WebKit) : fenêtre, icône, menus, téléchargements, liens externes vers le navigateur, page d'état si le service ne répond pas, arrêt propre (y compris SIGTERM).
+- Image disque `JARVIS-<version>.dmg` vérifiée ; construction reproductible (`build`), installation (`install`) avec conservation de l'ancienne version.
+- Code, données (`~/Library/Application Support/JARVIS`) et espace de travail (`~/JARVIS`) séparés ; migration par copie, sans suppression.
+- Service local : états documentés, démarrage automatique optionnel (LaunchAgent, confirmation), informations de service dans Paramètres.
+- Dictée native macOS (Speech, sur l'appareil quand possible).
+- Fournisseur « compatible OpenAI », erreurs d'API normalisées (401, 429, 5xx), limite d'abonnement détectée → tâche bloquée avec prochaine action, test du fournisseur actif.
+- Correctif : la CLI Claude attendait une autorisation macOS à cause d'un dossier courant hérité ; environnement minimal et explicite.
+- 85 tests, 0 échec ; conversation réelle validée depuis l'application installée.
+
 ## 0.2.0 — 2026-10-12 (prompt 3)
 - Navigateur piloté (Chrome sans interface, protocole DevTools) : pages JavaScript, champs, remplissage vérifié, liens, captures ; envoi de formulaire avec accord ; champs sensibles refusés.
 - Moteur : état final recoupé avec les étapes réelles (partiel / non vérifié / échoué), prochaine action, lectures en parallèle.

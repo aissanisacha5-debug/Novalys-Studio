@@ -141,7 +141,7 @@ class BrowserTests(unittest.TestCase):
             self.call("navigateur_ouvrir", url="http://127.0.0.1:8765/")
         self.open_form()
         from jarvis.tools.browser import session
-        session(self.app).js("document.forms[0].insertAdjacentHTML('beforeend', '<input type=password id=mdp>')")
+        session(self.app).js("(document.forms[0] || document.body).insertAdjacentHTML('beforeend', '<input type=password id=mdp>')")
         with self.assertRaises(PermissionDenied):
             self.call("navigateur_remplir", fields={"#mdp": "secret"})
 

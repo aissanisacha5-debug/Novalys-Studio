@@ -127,8 +127,9 @@ class AgentTests(unittest.TestCase):
         self.app.settings.update({"ai": {"provider": "anthropic_api"}})
         r = self.app.send_message(None, "Bonjour")
         t = self.env.wait_task(r["task_id"])
-        self.assertEqual(t["status"], "echouee")
+        self.assertEqual(t["status"], "bloquee")          # fournisseur indisponible = blocage, pas un échec de la tâche
         self.assertIn("indisponible", t["result"])
+        self.assertIn("fournisseur", t["next_action"])
 
     def test_mode_conversation_n_execute_rien(self):
         self.app.settings.update({"autonomy": {"mode": "conversation"}})
