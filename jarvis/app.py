@@ -139,7 +139,7 @@ class JarvisApp:
 
     # -- conversation -------------------------------------------------------------------------
     def send_message(self, conversation_id: Optional[int], text: str, project_id: Optional[int] = None,
-                     agent: str = "general", source: str = "texte") -> Dict[str, Any]:
+                     agent: str = "general", source: str = "texte", client_ts: Optional[float] = None) -> Dict[str, Any]:
         text = (text or "").strip()
         if not text:
             raise ValidationError("Message vide.")
@@ -150,7 +150,9 @@ class JarvisApp:
             conv = self.conversations.get(conversation_id)
         msg = self.conversations.add_message(conversation_id, "user", text, {"source": source})
         self.bus.publish({"type": "message", "conversation_id": conversation_id})
-        task = self.tasks.create(text, text[:100], "conversation", agent, conversation_id, conv.get("project_id") or project_id)
+        live = source == "voix" or bool(self.settings.get("voice.auto_speak"))
+        task = self.tasks.create(text, text[:100], "conversation", agent, conversation_id, conv.get("project_id") or project_id,
+                                 live_voice=live, client_ts=client_ts)
         self._maybe_summarize(conversation_id)
         return {"conversation_id": conversation_id, "message": msg, "task_id": task["id"]}
 

@@ -11,14 +11,14 @@ export const NAV = [
   { g: "Temps et messages", items: [["agenda", "Agenda", "calendar"], ["rappels", "Rappels", "bell"], ["emails", "E-mails", "mail"]] },
   { g: "Agence", items: [["prospection", "Prospection", "target"], ["sites", "Création de sites", "layout"]] },
   { g: "Système", items: [["applications", "Applications connectées", "plug"], ["notifications", "Notifications", "inbox"], ["historique", "Historique", "history"],
-    ["diagnostic", "Diagnostic", "pulse"], ["securite", "Sécurité", "shield"], ["parametres", "Paramètres", "gear"], ["modeles", "Modèles IA", "chip"]] },
+    ["autorisations", "Autorisations et autonomie", "check"], ["diagnostic", "Diagnostic", "pulse"], ["securite", "Sécurité", "shield"], ["parametres", "Paramètres", "gear"], ["modeles", "Modèles IA", "chip"]] },
 ];
 const TITLES = Object.fromEntries(NAV.flatMap((g) => g.items.map(([id, l]) => [id, l])));
 const VIEWS = {
   accueil: "home", conversation: "chat", vocal: "vocal", taches: "tasks", projets: "projects", fichiers: "files", documents: "documents",
   navigateur: "web", recherche: "search", automatisations: "automations", memoire: "memory", agenda: "agenda", rappels: "reminders",
   emails: "email", prospection: "agency", sites: "sites", applications: "connectors", notifications: "notifications", historique: "history",
-  diagnostic: "diagnostic", securite: "security", parametres: "settings", modeles: "models",
+  autorisations: "permissions", diagnostic: "diagnostic", securite: "security", parametres: "settings", modeles: "models",
 };
 
 export const app = {

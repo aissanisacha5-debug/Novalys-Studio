@@ -122,7 +122,11 @@ class Voice:
         self.settings = settings
         self.bus = bus
         self._proc: Optional[subprocess.Popen] = None
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
+        self._queue: List[str] = []
+        self._worker: Optional[threading.Thread] = None
+        self._gen = 0
+        self.last_audio_start: Optional[float] = None
 
     def voices(self) -> List[Dict[str, str]]:
         if not shutil.which("say"):
@@ -142,45 +146,78 @@ class Voice:
         except Exception:  # noqa: BLE001
             return []
 
-    def speak(self, text: str) -> Dict[str, Any]:
-        cfg = self.settings.get("voice", {})
-        if not shutil.which("say"):
-            raise JarvisError("Synthèse vocale macOS indisponible.", code="voix_indisponible")
+    @staticmethod
+    def clean(text: str) -> str:
         text = re.sub(r"```.*?```", " (bloc de code non lu) ", text, flags=re.S)
-        text = re.sub(r"[#*_`>|]", " ", text)
-        limit = cfg.get("max_spoken_chars", 600)
-        if len(text) > limit:
-            text = text[:limit].rsplit(" ", 1)[0] + ". La suite est affichée à l'écran."
+        text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+        text = re.sub(r"https?://\S+", " (lien) ", text)
+        return re.sub(r"[#*_`>|]", " ", text)
+
+    def _args(self, text: str) -> List[str]:
+        cfg = self.settings.get("voice", {})
         vol = max(0.0, min(1.0, float(cfg.get("volume", 0.8))))
         args = ["say", "-v", cfg.get("voice", "Thomas"), "-r", str(int(cfg.get("rate", 190)))]
         dev = cfg.get("output_device")
         if dev and dev != "defaut":
             args += ["-a", dev]
+        return args + [f"[[volm {vol:.2f}]] " + text]
+
+    def speak(self, text: str) -> Dict[str, Any]:
+        """Lit un texte complet (remplace toute lecture en cours)."""
+        cfg = self.settings.get("voice", {})
+        if not shutil.which("say"):
+            raise JarvisError("Synthèse vocale macOS indisponible.", code="voix_indisponible")
+        text = self.clean(text)
+        limit = cfg.get("max_spoken_chars", 600)
+        if len(text) > limit:
+            text = text[:limit].rsplit(" ", 1)[0] + ". La suite est affichée à l'écran."
         self.stop()
-        with self._lock:
-            self._proc = subprocess.Popen(args + [f"[[volm {vol:.2f}]] " + text], stdout=subprocess.DEVNULL,
-                                          stderr=subprocess.DEVNULL, start_new_session=True)
-        self.bus.publish({"type": "voice", "speaking": True})
-        threading.Thread(target=self._wait, daemon=True).start()
+        self.enqueue(text)
         return {"speaking": True, "chars": len(text)}
 
-    def _wait(self) -> None:
-        p = self._proc
-        if p:
+    # File de segments : la lecture commence dès la première phrase disponible (réponse en flux).
+    def enqueue(self, segment: str) -> None:
+        segment = self.clean(segment).strip()
+        if not segment or not shutil.which("say"):
+            return
+        with self._lock:
+            self._queue.append(segment)
+            if not (self._worker and self._worker.is_alive()):
+                self._worker = threading.Thread(target=self._play, args=(self._gen,), daemon=True)
+                self._worker.start()
+
+    def _play(self, gen: int) -> None:
+        started = False
+        while True:
+            with self._lock:
+                if gen != self._gen or not self._queue:
+                    self._worker = None
+                    break
+                seg = self._queue.pop(0)
+                self._proc = subprocess.Popen(self._args(seg), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                p = self._proc
+            if not started:
+                started = True
+                self.last_audio_start = __import__("time").time()
+            self.bus.publish({"type": "voice", "speaking": True, "text": seg})
             p.wait()
-        self.bus.publish({"type": "voice", "speaking": False})
+        if started:
+            self.bus.publish({"type": "voice", "speaking": False})
 
     def speaking(self) -> bool:
-        return bool(self._proc and self._proc.poll() is None)
+        return bool((self._proc and self._proc.poll() is None) or self._queue)
 
     def stop(self) -> bool:
         with self._lock:
+            self._gen += 1
+            self._queue.clear()
             p = self._proc
             if p and p.poll() is None:
                 try:
                     os.killpg(p.pid, signal.SIGTERM)
                 except Exception:  # noqa: BLE001
                     p.terminate()
+                self.bus.publish({"type": "voice", "speaking": False})
                 return True
         return False
 

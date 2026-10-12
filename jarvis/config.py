@@ -48,7 +48,9 @@ def default_settings() -> Dict[str, Any]:
             "volume": 0.8,
             "rate": 190,
             "auto_speak": False,
-            "auto_send": False,
+            "auto_send": True,
+            "barge_in": True,
+            "end_silence_ms": 900,
             "hands_free": False,
             "max_spoken_chars": 600,
             "stt_engine": "navigateur",
@@ -64,7 +66,9 @@ def default_settings() -> Dict[str, Any]:
         "startup": {"open_window": True, "browser": "chrome", "port": 8765},
         "shortcuts": {"focus_input": "/", "voice": "Alt+Space", "stop": "Escape", "palette": "Meta+K"},
         "confirmations": {"moderate_needs_confirmation": False},
-        "autonomy": {"mode": "execution_supervisee", "max_steps": 12, "max_task_seconds": 900, "max_retries": 2},
+        "autonomy": {"mode": "execution_supervisee", "level": "locale", "max_steps": 12, "max_task_seconds": 900, "max_retries": 2},
+        "policies": [],
+        "tools_disabled": [],
         "allowed_dirs": [
             {"path": str(paths.workspace_dir()), "mode": "rw", "label": "Espace de travail JARVIS"},
             {"path": str(paths.CYPHER_DIR), "mode": "r", "label": "Dossier CYPHER (lecture seule)"},
@@ -90,6 +94,8 @@ def default_settings() -> Dict[str, Any]:
 SENSITIVE_KEYS = {
     "allowed_dirs",
     "autonomy.mode",
+    "autonomy.level",
+    "policies",
     "shell.allowed_commands",
     "email.send_enabled",
     "email.mode",
@@ -201,6 +207,8 @@ class Settings:
         if "animations" in ap and ap["animations"] not in ("normales", "reduites", "aucune"):
             raise ValidationError("animations : normales, reduites ou aucune.")
         au = patch.get("autonomy", {})
+        if "level" in au and au["level"] not in ("assiste", "prudent", "locale", "avancee"):
+            raise ValidationError("Niveau d'autonomie : assiste, prudent, locale ou avancee.")
         if "mode" in au and au["mode"] not in MODES:
             raise ValidationError("Mode inconnu.", {"modes": list(MODES)})
         for k, lo, hi in (("max_steps", 1, 50), ("max_task_seconds", 10, 7200), ("max_retries", 0, 5)):

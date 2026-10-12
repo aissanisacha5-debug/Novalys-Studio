@@ -172,6 +172,10 @@ export function confirmCard(c, onDone, compact = false) {
       c.args && !compact ? [el("dt", {}, "Paramètres"), el("dd", { class: "mono" }, JSON.stringify(c.args).slice(0, 400))] : null),
     el("div", { class: "btns" },
       btn("Autoriser cette action", async () => { await post(`/api/confirmations/${c.id || c.confirmation_id}`, { approve: true }); toast("Action autorisée."); onDone?.(true); }, { cls: "primary", icon: "check" }),
+      ["fichier_supprimer", "commande_executer"].includes(c.tool) ? btn("Autoriser et ne plus demander ici", async () => {
+        await post(`/api/confirmations/${c.id || c.confirmation_id}`, { approve: true, remember: true });
+        toast("Autorisé. JARVIS ne redemandera plus pour ce périmètre (révocable dans Autorisations et autonomie)."); onDone?.(true);
+      }, { cls: "ghost" }) : null,
       btn("Refuser", async () => { await post(`/api/confirmations/${c.id || c.confirmation_id}`, { approve: false }); toast("Action refusée."); onDone?.(false); }, { cls: "ghost" })));
   return card;
 }

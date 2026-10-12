@@ -39,6 +39,7 @@ class ToolContext:
     cancel_event: Optional[threading.Event] = None
     mode: Optional[str] = None
     agent: str = "general"
+    tainted: bool = False      # la tâche a lu un contenu contenant des instructions suspectes : plus d'automatisme au risque élevé
 
     def check_cancel(self) -> None:
         if self.cancel_event is not None and self.cancel_event.is_set():
@@ -61,6 +62,7 @@ class Tool:
     reversible: bool = True
     cancellable: bool = True
     available: Callable[[Any], Tuple[bool, str]] = field(default=lambda app: (True, ""))
+    local_reversible: Any = False         # vrai (ou fonction(permissions, args)) : effet local récupérable
     describe: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None
     version: str = "1"
 
@@ -144,8 +146,10 @@ class ToolRegistry:
         for t in sorted(self._tools.values(), key=lambda x: (x.category, x.id)):
             ok, why = t.available(self.app)
             d = t.schema()
-            d["available"] = ok
-            d["unavailable_reason"] = why
+            disabled = t.id in (self.app.settings.get("tools_disabled") or [])
+            d["available"] = ok and not disabled
+            d["enabled"] = not disabled
+            d["unavailable_reason"] = "désactivé par Sacha" if disabled else why
             out.append(d)
         return out
 
@@ -154,6 +158,8 @@ class ToolRegistry:
         out = []
         for t in sorted(self._tools.values(), key=lambda x: x.id):
             if allowed is not None and t.id not in allowed:
+                continue
+            if t.id in (self.app.settings.get("tools_disabled") or []):
                 continue
             ok, _ = t.available(self.app)
             if not ok:
@@ -167,27 +173,42 @@ class ToolRegistry:
     def invoke(self, tool_id: str, args: Any, ctx: ToolContext) -> Dict[str, Any]:
         app = self.app
         tool = self.get(tool_id)
+        if tool_id in (app.settings.get("tools_disabled") or []):
+            raise ToolUnavailable(f"Outil « {tool_id} » désactivé par Sacha (Autorisations et autonomie).", {"outil": tool_id})
         ok, why = tool.available(app)
         if not ok:
             raise ToolUnavailable(f"Outil « {tool_id} » indisponible : {why}", {"outil": tool_id})
         clean = validate_args(tool, args)
         risk = tool.risk_for(clean)
-        decision = app.permissions.check_risk(risk, ctx.mode)
+        decision = app.permissions.check_risk(risk, ctx.mode, None if ctx.tainted else tool, clean)
         if decision == "confirmation":
-            if not app.permissions.consume_confirmation(tool_id, clean, ctx.task_id):
-                describe = {"action": tool.description, "target": None, "consequences": None,
-                            "data": None, "reversible": tool.reversible, "expected": tool.expected}
-                if tool.describe:
-                    describe.update(tool.describe(clean))
-                cid = app.permissions.request_confirmation(tool_id, clean, risk, describe, ctx.task_id)
-                app.logbook.log("autorisation_demandee", f"Confirmation demandée : {describe['action']}",
-                                "attention", ctx.task_id, ctx.conversation_id, tool_id, {"confirmation_id": cid})
-                app.notify("confirmation", "Confirmation requise", describe["action"])
-                app.bus.publish({"type": "confirmation", "id": cid})
-                raise_confirmation(cid, describe)
-            app.logbook.log("autorisation_utilisee", "Confirmation acceptée utilisée.", "info",
-                            ctx.task_id, ctx.conversation_id, tool_id)
+            policy = app.permissions.matching_policy(tool_id, clean)
+            if policy:
+                app.logbook.log("autorisation_prealable", f"Autorisation préalable utilisée ({policy['scope']})", "info",
+                                ctx.task_id, ctx.conversation_id, tool_id, {"policy": policy["id"]})
+            else:
+                self._confirm_or_raise(tool, tool_id, clean, risk, ctx)
         ctx.check_cancel()
+        return self._run(tool, tool_id, clean, ctx)
+
+    def _confirm_or_raise(self, tool, tool_id, clean, risk, ctx) -> None:
+        app = self.app
+        if not app.permissions.consume_confirmation(tool_id, clean, ctx.task_id):
+            describe = {"action": tool.description, "target": None, "consequences": None,
+                        "data": None, "reversible": tool.reversible, "expected": tool.expected}
+            if tool.describe:
+                describe.update(tool.describe(clean))
+            cid = app.permissions.request_confirmation(tool_id, clean, risk, describe, ctx.task_id)
+            app.logbook.log("autorisation_demandee", f"Confirmation demandée : {describe['action']}",
+                            "attention", ctx.task_id, ctx.conversation_id, tool_id, {"confirmation_id": cid})
+            app.notify("confirmation", "Confirmation requise", describe["action"])
+            app.bus.publish({"type": "confirmation", "id": cid})
+            raise_confirmation(cid, {**describe, "tool": tool_id, "risk": risk})
+        app.logbook.log("autorisation_utilisee", "Confirmation acceptée utilisée.", "info",
+                        ctx.task_id, ctx.conversation_id, tool_id)
+
+    def _run(self, tool, tool_id, clean, ctx) -> Dict[str, Any]:
+        app = self.app
         app.logbook.log("outil_appel", f"Outil {tool_id}", "info", ctx.task_id, ctx.conversation_id, tool_id,
                         {"args": _short(clean)})
         app.bus.publish({"type": "activity", "state": "outil", "tool": tool_id, "task_id": ctx.task_id})

@@ -104,7 +104,7 @@ class ProviderManager:
         return chain
 
     def complete(self, system: str, prompt: str, json_schema: Optional[Dict[str, Any]] = None, task_id: Optional[int] = None,
-                 cancel_event=None, model: Optional[str] = None, agent: Optional[str] = None) -> Completion:
+                 cancel_event=None, model: Optional[str] = None, agent: Optional[str] = None, on_partial=None) -> Completion:
         s = self.app.settings
         chain = self.plan(model, agent)
         available = [(p, m) for p, m in chain if p.available()[0]]
@@ -117,7 +117,12 @@ class ProviderManager:
         for i, (p, m) in enumerate(available):
             t0 = time.time()
             try:
-                c = p.complete(system, prompt, m, json_schema, s.get("ai.timeout_s", 180), cancel_event)
+                # Flux réel seulement si le fournisseur le gère (paramètre on_partial) ; sinon réponse complète.
+                import inspect
+                if on_partial is not None and "on_partial" in inspect.signature(p.complete).parameters:
+                    c = p.complete(system, prompt, m, json_schema, s.get("ai.timeout_s", 180), cancel_event, on_partial=on_partial)
+                else:
+                    c = p.complete(system, prompt, m, json_schema, s.get("ai.timeout_s", 180), cancel_event)
                 c.duration_ms = int((time.time() - t0) * 1000)
                 self._record(c, task_id, True)
                 if i:

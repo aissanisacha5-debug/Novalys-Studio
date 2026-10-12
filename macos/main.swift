@@ -124,6 +124,7 @@ final class NativeVoice: NSObject {
     private var wakePhrase = "jarvis"
     private var awake = false          // mot détecté : on capture la demande
     private var generation = 0         // invalide les rappels d'une session précédente
+    var endSilence: Double = 0.9       // fin de phrase : silence après le dernier mot (réglable)
 
     func send(_ event: [String: Any]) {
         guard let data = try? JSONSerialization.data(withJSONObject: event), let json = String(data: data, encoding: .utf8) else { return }
@@ -151,7 +152,8 @@ final class NativeVoice: NSObject {
     }
 
     // MARK: commande unique (bouton micro)
-    func start() {
+    func start(silenceMs: Int? = nil) {
+        if let ms = silenceMs { endSilence = max(0.4, min(3.0, Double(ms) / 1000)) }
         wakePaused = true
         authorize { self.begin(wake: false) }
     }
@@ -243,7 +245,7 @@ final class NativeVoice: NSObject {
                 let command = wake ? String(text[(commandStart ?? text.startIndex)...]).trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
                                    : text
                 self.send(["type": "result", "text": command, "final": false])
-                self.armSilence(1.8) { self.endCommand(text: command, wake: wake) }
+                self.armSilence(self.endSilence) { self.endCommand(text: command, wake: wake) }
                 if r.isFinal && !wake { self.endCommand(text: command, wake: false) }
             }
             if let e = error as NSError?, result == nil {
@@ -314,7 +316,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         guard let body = message.body as? [String: Any], let cmd = body["cmd"] as? String else { return }
         if message.name == "jarvisVoice" {
             switch cmd {
-            case "start": voice.start()
+            case "start": voice.start(silenceMs: body["silenceMs"] as? Int)
             case "finish": voice.finish()
             case "wake_start": voice.startWake(phrase: body["phrase"] as? String ?? "jarvis")
             case "wake_stop": voice.stopWake()
@@ -325,6 +327,22 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         } else if message.name == "jarvisApp", cmd == "open", let s = body["url"] as? String, let u = URL(string: s),
                   ["http", "https"].contains(u.scheme ?? "") {
             NSWorkspace.shared.open(u)
+        } else if message.name == "jarvisApp", cmd == "pickFolder" {
+            // Sélecteur de dossiers macOS : le choix explicite de Sacha ; le chemin est ensuite soumis à confirmation dans JARVIS.
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.allowsMultipleSelection = false
+            panel.prompt = "Autoriser ce dossier"
+            panel.message = "Choisissez le dossier auquel JARVIS pourra accéder."
+            panel.begin { resp in
+                let path = resp == .OK ? panel.url?.path : nil
+                let js = path.map { p -> String in
+                    let data = try? JSONSerialization.data(withJSONObject: [p]); let arr = data.flatMap { String(data: $0, encoding: .utf8) } ?? "[null]"
+                    return "window.jarvisNativePicked && window.jarvisNativePicked(\(arr)[0])"
+                } ?? "window.jarvisNativePicked && window.jarvisNativePicked(null)"
+                self.web.evaluateJavaScript(js)
+            }
         }
     }
 

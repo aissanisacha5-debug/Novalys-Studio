@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from typing import Any, Dict, List
 
@@ -110,6 +111,61 @@ def _trim(s: Any, n: int) -> str:
 
 def idem_key(tool: str, args: Dict[str, Any]) -> str:
     return hashlib.sha1((tool + json.dumps(args, sort_keys=True, ensure_ascii=False)).encode()).hexdigest()[:16]
+
+
+# Instructions adressées à l'IA dans un contenu lu (page, fichier, e-mail) : la tâche devient « contaminée ».
+INJECTION_RE = re.compile(r"(?i)(ignore[rz]?\s+(tes|vos|les|toutes?\s+les)\s+(règles|regles|instructions|consignes)|"
+                          r"tu\s+es\s+(maintenant\s+)?autoris|system\s+prompt|nouvelles?\s+instructions|"
+                          r"(supprime|efface|envoie|exécute|execute|transfère|transfere)[sz]?\s+(immédiatement|tout|le|la|les|ce|cette))")
+
+
+def tainted_steps(steps: List[Dict[str, Any]]) -> bool:
+    for st in steps:
+        if st["kind"] == "outil" and st["status"] == "termine" and INJECTION_RE.search(json.dumps((st["result"] or {}).get("result"), ensure_ascii=False) or ""):
+            return True
+    return False
+
+
+_MSG_RE = re.compile(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)')
+
+
+def partial_message(partial_json: str) -> str:
+    """Extrait le texte (même incomplet) du champ « message » d'un JSON en cours de génération."""
+    m = _MSG_RE.search(partial_json)
+    if not m:
+        return ""
+    raw = re.sub(r"\\(u[0-9a-fA-F]{0,3})?$", "", m.group(1))       # échappement coupé en fin de fragment
+    try:
+        return json.loads('"' + raw + '"')
+    except ValueError:
+        return raw.replace("\\n", " ")
+
+
+class LiveSpeaker:
+    """Lecture vocale en flux : chaque phrase complète du message est lue dès qu'elle arrive."""
+
+    def __init__(self, app, tid: int):
+        self.app, self.tid, self.done, self.first_audio = app, tid, 0, None
+
+    def feed(self, partial_json: str) -> None:
+        text = partial_message(partial_json)
+        ends = [m.end() for m in re.finditer(r"[.!?…:;](?=\s)", text[self.done:])]   # phrase complète = suivie d'un espace
+        if ends:
+            seg = text[self.done:self.done + ends[-1]]
+            self.done += ends[-1]
+            if seg.strip():
+                self._say(seg)
+
+    def flush(self, final_text: str) -> None:
+        rest = final_text[self.done:].strip()
+        if rest:
+            self._say(rest)
+        self.done = len(final_text)
+
+    def _say(self, seg: str) -> None:
+        if self.first_audio is None:
+            self.first_audio = time.time()
+        self.app.voice.enqueue(seg)
 
 
 class AgentRunner:
@@ -226,10 +282,13 @@ class AgentRunner:
             steps = self._steps()
             sid = self._add_step("modele")
             t0 = time.time()
+            live = LiveSpeaker(app, self.tid) if app.tasks.live_voice.get(self.tid) else None
+            app.tasks.mark_latency(self.tid, "model_start", time.time())
             try:
                 comp = app.providers.complete(system_prompt(app, self._tool_specs(mode), t.get("agent") or "general", mode),
                                               self._prompt(steps, model_turns, max_steps), RESPONSE_SCHEMA, self.tid, self.cancel,
-                                              agent=t.get("agent") or "general")
+                                              agent=t.get("agent") or "general", on_partial=live.feed if live else None)
+                app.tasks.mark_latency(self.tid, "first_fragment", comp.raw.get("first_fragment_ms"), comp.raw.get("prewarmed"))
             except ProviderError as e:
                 self._finish_step(sid, "echec", error=e.message, t0=t0)
                 if e.code == "annule":
@@ -255,6 +314,11 @@ class AgentRunner:
             msg = (data.get("message") or "").strip()
             if msg:
                 last_message = msg
+            if live and not self.cancel.is_set():
+                live.flush(msg)                       # lit la fin du message (ou tout, si le fournisseur ne diffuse pas en flux)
+                app.tasks.spoken_live.add(self.tid)
+                if live.first_audio:
+                    app.tasks.mark_latency(self.tid, "first_audio", live.first_audio)
             actions = data.get("actions") or []
             status = data.get("status") or ("continuer" if actions else "termine")
             if data.get("plan"):
@@ -325,7 +389,12 @@ class AgentRunner:
             return False
         sid = self._add_step("outil", tool, args, "en_cours", key)
         t0 = time.time()
-        ctx = ToolContext(app, self.tid, self.task.get("conversation_id"), self.cancel, mode, self.task.get("agent") or "general")
+        ctx = ToolContext(app, self.tid, self.task.get("conversation_id"), self.cancel, mode, self.task.get("agent") or "general",
+                          tainted_steps(steps))
+        if ctx.tainted and not getattr(self, "_taint_logged", False):
+            self._taint_logged = True
+            app.logbook.log("injection_suspecte", "Instruction suspecte lue dans un contenu : toute action à risque élevé demandera votre accord.",
+                            "attention", self.tid)
         try:
             app.tasks.lock_paths(self.tid, tool, args)
             res = app.tools.invoke(str(tool), args, ctx)

@@ -261,6 +261,19 @@ def v_delete(ctx, a, r):
     return (CONFIRME, "placé dans la corbeille JARVIS (récupérable)") if ok else (ECHOUE, "suppression non constatée")
 
 
+def _delete_is_local_reversible(perms, a) -> bool:
+    """Suppression = déplacement en corbeille JARVIS : automatique en autonomie locale seulement pour un fichier
+    ou un petit dossier (20 éléments au plus) d'un dossier autorisé en écriture. Au-delà : confirmation."""
+    p = perms.resolve_path(a.get("path", ""), write=True)
+    if p.is_dir():
+        n = 0
+        for _ in p.rglob("*"):
+            n += 1
+            if n > 20:
+                return False
+    return p.exists()
+
+
 def h_zip(ctx, a):
     dest = ctx.app.permissions.resolve_path(a["dest"], write=True)
     if dest.exists():
@@ -352,7 +365,7 @@ def register(reg) -> None:
                       {"src": P(type="string", required=True), "dst": P(type="string", required=True)},
                       h_copy, "modere", "fichiers", 120, verify=v_copy, verification="présence des deux"))
     reg.register(Tool("fichier_supprimer", "Supprimer un fichier/dossier (placé dans la corbeille JARVIS, récupérable).",
-                      {"path": P(type="string", required=True)}, h_delete, "eleve", "fichiers", 60,
+                      {"path": P(type="string", required=True)}, h_delete, "eleve", "fichiers", 60, local_reversible=_delete_is_local_reversible,
                       verification="absence + présence en corbeille", verify=v_delete, reversible=True,
                       describe=lambda a: {"action": f"Supprimer {a['path']}", "target": a["path"],
                                           "consequences": "L'élément quitte son dossier ; il reste récupérable dans la corbeille JARVIS (data/corbeille).",

@@ -11,6 +11,7 @@ class AgentTests(unittest.TestCase):
     def setUp(self):
         self.env = TestEnv()
         self.app = self.env.make_app()
+        self.app.settings.update({"autonomy": {"level": "prudent"}})   # niveau où toute suppression demande un accord
 
     def tearDown(self):
         self.env.close()

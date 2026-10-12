@@ -1,4 +1,9 @@
-# Limites connues (v0.4, 2026-10-12)
+# Limites connues (v0.5, 2026-10-12)
+
+## Vocal instantané (v0.5)
+- Interruption vocale, conversation continue et reconnaissance : non testées au micro (je ne peux pas parler). La chaîne « phrase reçue → réponse lue » est testée en réel dans l'application installée (3 échanges enchaînés).
+- Le filtre d'écho compare les mots entendus au texte lu : efficace mais pas infaillible avec des haut-parleurs forts ; un casque est plus sûr.
+- Dans un navigateur (hors application), la fin de phrase est décidée par le navigateur (délai non réglable).
 
 ## Voix (v0.4)
 - Dictée, mains libres et mot d'activation : **implémentés et compilés, non testés au micro** (je ne peux ni parler ni accorder l'autorisation micro à la place de Sacha). Le mot d'activation exige la reconnaissance du français sur l'appareil ; si le Mac ne la propose pas, l'option se désactive avec un message.

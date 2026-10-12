@@ -72,24 +72,83 @@ class ClaudeCodeProvider(Provider):
     def models(self) -> List[str]:
         return ["sonnet", "haiku", "opus"]
 
-    def complete(self, system: str, prompt: str, model: Optional[str] = None, json_schema: Optional[Dict[str, Any]] = None,
-                 timeout_s: int = 180, cancel_event=None) -> Completion:
-        b = claude_bin()
-        if not b:
-            raise ProviderError("CLI claude introuvable.")
-        sandbox = paths.data_dir() / "ia-sandbox"
-        sandbox.mkdir(exist_ok=True)
-        cmd = [b, "-p", "--tools", "", "--system-prompt", system, "--output-format", "json",
-               "--no-session-persistence", "--strict-mcp-config", "--setting-sources", "",
-               "--disable-slash-commands"]
+    # -- préchauffage : un processus prêt à recevoir la prochaine demande -------------------
+    # La CLI met ~0,5 s à s'initialiser ; en mode « stream-json » elle attend la demande sur son entrée
+    # sans limite de temps. Un processus de réserve par configuration (consigne, modèle, schéma) est donc
+    # lancé à l'avance : aucune requête n'est envoyée au modèle tant qu'il n'a pas reçu de demande.
+    _pool: Dict[str, Tuple[float, Any]] = {}
+    _pool_lock = __import__("threading").Lock()
+    POOL_TTL = 240
+
+    def _cmd(self, system: str, model: Optional[str], json_schema: Optional[Dict[str, Any]]) -> List[str]:
+        cmd = [claude_bin(), "-p", "--tools", "", "--system-prompt", system, "--input-format", "stream-json",
+               "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+               "--no-session-persistence", "--strict-mcp-config", "--setting-sources", "", "--disable-slash-commands"]
         if model:
             cmd += ["--model", model]
         if json_schema:
             cmd += ["--json-schema", json.dumps(json_schema)]
-        proc = subprocess.Popen(cmd, cwd=str(sandbox), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, env=clean_env(), start_new_session=True)
+        return cmd
+
+    def _spawn(self, cmd: List[str]):
+        sandbox = paths.data_dir() / "ia-sandbox"
+        sandbox.mkdir(exist_ok=True)
+        return subprocess.Popen(cmd, cwd=str(sandbox), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                env=clean_env(), start_new_session=True)
+
+    def _take(self, key: str, cmd: List[str]):
+        with self._pool_lock:
+            item = self._pool.pop(key, None)
+        if item:
+            ts, proc = item
+            if proc.poll() is None and time.time() - ts < self.POOL_TTL:
+                return proc, True
+            self._kill(proc)
+        return self._spawn(cmd), False
+
+    def _prewarm(self, key: str, cmd: List[str]) -> None:
+        if not self.app.settings.get("ai.prewarm", True):
+            return
+        with self._pool_lock:
+            for k, (ts, proc) in list(self._pool.items()):       # une seule réserve à la fois
+                self._pool.pop(k)
+                self._kill(proc)
+            self._pool[key] = (time.time(), self._spawn(cmd))
+
+    @classmethod
+    def shutdown_pool(cls) -> None:
+        with cls._pool_lock:
+            for k, (ts, proc) in list(cls._pool.items()):
+                cls._pool.pop(k)
+                cls._kill(proc)
+
+    def complete(self, system: str, prompt: str, model: Optional[str] = None, json_schema: Optional[Dict[str, Any]] = None,
+                 timeout_s: int = 180, cancel_event=None, on_partial=None) -> Completion:
+        """Appel en flux (stream-json) : `on_partial(texte_partiel)` reçoit la réponse au fur et à mesure
+        (réel : fragments envoyés par le fournisseur, jamais simulés)."""
+        import hashlib
+        import queue as _queue
+        import threading as _th
+        if not claude_bin():
+            raise ProviderError("CLI claude introuvable.")
+        cmd = self._cmd(system, model, json_schema)
+        key = hashlib.sha1("\x00".join(cmd).encode()).hexdigest()
+        proc, warm = self._take(key, cmd)
         t0 = time.time()
-        payload: Optional[bytes] = prompt.encode("utf-8")
+        lines: "_queue.Queue" = _queue.Queue()
+
+        def reader():
+            for line in proc.stdout:
+                lines.put(line)
+            lines.put(None)
+
+        _th.Thread(target=reader, daemon=True).start()
+        try:
+            proc.stdin.write((json.dumps({"type": "user", "message": {"role": "user", "content": prompt}}) + "\n").encode("utf-8"))
+            proc.stdin.flush()
+        except BrokenPipeError:
+            pass
+        partial, first_ms, result = "", None, None
         while True:
             if cancel_event is not None and cancel_event.is_set():
                 self._kill(proc)
@@ -98,16 +157,41 @@ class ClaudeCodeProvider(Provider):
                 self._kill(proc)
                 raise ProviderError(f"Le modèle n'a pas répondu en {timeout_s}s.", code="delai_depasse")
             try:
-                # communicate() lit en continu (pas de blocage si la réponse dépasse le tampon du tube)
-                out_b, err_b = proc.communicate(input=payload, timeout=0.2)
+                line = lines.get(timeout=0.1)
+            except _queue.Empty:
+                continue
+            if line is None:
                 break
-            except subprocess.TimeoutExpired:
-                payload = None
-        out, err = out_b.decode("utf-8", "replace"), err_b.decode("utf-8", "replace")
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            if d.get("type") == "stream_event":
+                delta = (d.get("event") or {}).get("delta") or {}
+                piece = delta.get("partial_json") if delta.get("type") == "input_json_delta" else (
+                    delta.get("text") if delta.get("type") == "text_delta" else None)
+                if piece:
+                    if first_ms is None:
+                        first_ms = int((time.time() - t0) * 1000)
+                    partial += piece
+                    if on_partial:
+                        try:
+                            on_partial(partial)
+                        except Exception:  # noqa: BLE001 - un consommateur fautif n'interrompt pas l'appel
+                            pass
+            elif d.get("type") == "result":
+                result = d
+                break
         try:
-            d = json.loads(out)
-        except ValueError:
-            raise ProviderError("Réponse illisible de Claude Code.", {"stderr": err[-400:], "stdout": out[-400:]})
+            proc.stdin.close()
+        except Exception:  # noqa: BLE001
+            pass
+        __import__("threading").Thread(target=lambda: (proc.wait(timeout=15) if proc.poll() is None else None), daemon=True).start()
+        __import__("threading").Thread(target=self._prewarm, args=(key, cmd), daemon=True).start()
+        if not result:
+            err = proc.stderr.read().decode("utf-8", "replace") if proc.poll() is not None else ""
+            raise ProviderError("Réponse illisible de Claude Code.", {"stderr": err[-400:]})
+        d = result
         msg = str(d.get("result") or "")
         if d.get("is_error") and re.search(r"(?i)(session|usage|weekly|rate) limit|limite", msg):
             reset = re.search(r"(?i)resets?\s+([^·\n]+)", msg)
@@ -129,7 +213,7 @@ class ClaudeCodeProvider(Provider):
             output_tokens=usage.get("output_tokens"),
             cost_usd=d.get("total_cost_usd"),
             cost_kind="inclus_abonnement",
-            raw={"duration_api_ms": d.get("duration_api_ms")},
+            raw={"duration_api_ms": d.get("duration_api_ms"), "first_fragment_ms": first_ms, "prewarmed": warm, "streamed": True},
         )
 
     @staticmethod

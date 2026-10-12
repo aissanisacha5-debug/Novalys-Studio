@@ -29,13 +29,17 @@ class TaskManager:
         self._cancel: Dict[int, threading.Event] = {}
         self._pause: Dict[int, threading.Event] = {}
         self._locks: Dict[str, int] = {}
+        self.live_voice: Dict[int, bool] = {}      # tâches dont la réponse est lue en flux
+        self.spoken_live: set = set()
+        self.latency: Dict[int, Dict[str, Any]] = {}
+        self.interrupted: set = set()              # annulées parce que Sacha a repris la parole
         self._mu = threading.RLock()
 
     # -- création / consultation ---------------------------------------------------
     def create(self, objective: str, title: Optional[str] = None, kind: str = "agent", agent: str = "general",
                conversation_id: Optional[int] = None, project_id: Optional[int] = None, priority: int = 2,
                depends_on: Optional[List[int]] = None, due_date: Optional[str] = None, start: bool = True,
-               parent_id: Optional[int] = None) -> Dict[str, Any]:
+               parent_id: Optional[int] = None, live_voice: bool = False, client_ts: Optional[float] = None) -> Dict[str, Any]:
         if not objective or not objective.strip():
             raise ValidationError("Objectif vide.")
         if kind not in ("agent", "conversation", "todo", "automatisation"):
@@ -49,9 +53,15 @@ class TaskManager:
             "INSERT INTO tasks(title, objective, kind, agent, conversation_id, project_id, parent_id, depends_on, priority, status, "
             "due_date, max_steps, max_seconds, max_retries, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             ((title or objective)[:140], objective, kind, agent, conversation_id, project_id, parent_id, dumps(depends_on or []),
-             int(priority), "en_attente", due_date, s.get("autonomy.max_steps", 12), s.get("autonomy.max_task_seconds", 900),
-             s.get("autonomy.max_retries", 2), ts, ts))
+             int(priority), "en_attente", due_date,
+             max(30, s.get("autonomy.max_steps", 12)) if s.get("autonomy.level") == "avancee" else s.get("autonomy.max_steps", 12),
+             s.get("autonomy.max_task_seconds", 900),
+             max(3, s.get("autonomy.max_retries", 2)) if s.get("autonomy.level") == "avancee" else s.get("autonomy.max_retries", 2), ts, ts))
         self.app.logbook.log("tache_creee", f"Tâche #{tid} créée : {(title or objective)[:100]}", "info", tid, conversation_id)
+        import time as _time
+        self.latency[tid] = {"received": _time.time(), "client": client_ts}
+        if live_voice:
+            self.live_voice[tid] = True
         self._publish(tid)
         if start and kind != "todo":
             self.start(tid)
@@ -141,7 +151,10 @@ class TaskManager:
         try:
             AgentRunner(self.app, t, ce, pe).run()
         except Cancelled:
-            self.finish(tid, "annulee", "Tâche annulée. Les résultats déjà obtenus sont conservés.", "bloque")
+            msg = ("Réponse interrompue : vous avez repris la parole." if tid in self.interrupted
+                   else "Tâche annulée. Les résultats déjà obtenus sont conservés.")
+            self.interrupted.discard(tid)
+            self.finish(tid, "annulee", msg, "bloque")
         except ConfirmationRequired:
             pass  # statut déjà « attente_autorisation »
         except Exception as e:  # noqa: BLE001
@@ -180,7 +193,9 @@ class TaskManager:
                                           {"task_id": tid, "status": status, "result_state": result_state, "tools_used": tools_used,
                                            "next_action": next_action})
             app.bus.publish({"type": "message", "conversation_id": t["conversation_id"], "task_id": tid})
-            if app.settings.get("voice.auto_speak") and status in ("terminee", "attente_reponse", "bloquee", "echouee"):
+            if tid in self.spoken_live:
+                self.spoken_live.discard(tid)          # déjà lu en flux pendant la génération
+            elif app.settings.get("voice.auto_speak") and status in ("terminee", "attente_reponse", "bloquee", "echouee"):
                 try:
                     app.voice.speak(message)
                 except JarvisError:
@@ -190,6 +205,7 @@ class TaskManager:
                 app.notify("tache_terminee", "Tâche terminée", t["title"])
             elif status in ("echouee", "bloquee"):
                 app.notify("erreur" if status == "echouee" else "projet_bloque", f"Tâche {status}", t["title"])
+        self._log_latency(tid, status)
         self._publish(tid)
         app.bus.publish({"type": "activity", "state": "erreur" if status == "echouee" else "termine", "task_id": tid})
         self.start_ready_dependents()
@@ -204,8 +220,10 @@ class TaskManager:
                     pass
 
     # -- contrôle ------------------------------------------------------------------------
-    def cancel(self, tid: int) -> Dict[str, Any]:
+    def cancel(self, tid: int, reason: Optional[str] = None) -> Dict[str, Any]:
         t = self.get(tid)
+        if reason == "interruption":
+            self.interrupted.add(tid)
         if t["status"] in ("terminee", "annulee", "echouee"):
             raise ValidationError(f"Tâche déjà {t['status']}.")
         ev = self._cancel.get(tid)
@@ -230,6 +248,34 @@ class TaskManager:
                             (self.app.settings.get("autonomy.max_task_seconds", 900), 6, tid))
         self.app.logbook.log("tache_reprise", f"Reprise de la tâche #{tid}", "info", tid)
         return self.start(tid)
+
+    def mark_latency(self, tid: int, key: str, value: Any, extra: Any = None) -> None:
+        lat = self.latency.get(tid)
+        if lat is None or key in lat:
+            return
+        import time as _time
+        if key == "first_fragment":
+            if value is None:
+                return
+            lat["first_fragment"] = lat["received"] + value / 1000 if lat.get("model_start") is None else lat["model_start"] + value / 1000
+            lat["prewarmed"] = extra
+        else:
+            lat[key] = value if isinstance(value, float) else _time.time()
+
+    def _log_latency(self, tid: int, status: str) -> None:
+        import time as _time
+        lat = self.latency.pop(tid, None)
+        self.live_voice.pop(tid, None)
+        if not lat:
+            return
+        t0 = lat["received"]
+        ms = lambda k: int((lat[k] - t0) * 1000) if lat.get(k) else None  # noqa: E731
+        data = {"premier_fragment_ms": ms("first_fragment"), "premier_son_ms": ms("first_audio"), "total_ms": int((_time.time() - t0) * 1000),
+                "prechauffe": lat.get("prewarmed"), "statut": status}
+        if lat.get("client"):
+            data["depuis_fin_de_parole_ms"] = int((t0 - lat["client"]) * 1000)
+        self.app.logbook.log("latence", f"Latence tâche #{tid} : premier son {data['premier_son_ms']} ms, total {data['total_ms']} ms",
+                             "info", tid, data=data)
 
     def update(self, tid: int, title: Optional[str] = None, objective: Optional[str] = None, due_date: Any = "inchange",
                priority: Optional[int] = None) -> Dict[str, Any]:

@@ -126,6 +126,11 @@ class Api:
         r("GET", r"/api/sources", lambda q, b: self.app.db.all("SELECT * FROM web_sources ORDER BY id DESC LIMIT 200"))
         r("GET", r"/api/plugins", lambda q, b: self.app.plugins)
         r("POST", r"/api/shutdown", self.shutdown)
+        r("GET", r"/api/permissions", self.permissions_view)
+        r("POST", r"/api/permissions/revoke", self.permissions_revoke)
+        r("POST", r"/api/permissions/tools", self.permissions_tool)
+        r("POST", r"/api/stop-all", self.stop_all)
+        r("GET", r"/api/latency", lambda q, b: [e["data"] for e in self.app.logbook.search(kind="latence", limit=int(q.get("limit", 20)))])
         r("GET", r"/api/service", self.service_info)
         r("POST", r"/api/service/autostart", self.autostart)
 
@@ -159,8 +164,10 @@ class Api:
         }
 
     def chat(self, q, b):
+        cts = b.get("client_ts")
         return self.app.send_message(_int(b.get("conversation_id")), b.get("text", ""), _int(b.get("project_id")),
-                                     b.get("agent", "general") if b.get("agent") in profiles.PROFILES else "general", b.get("source", "texte"))
+                                     b.get("agent", "general") if b.get("agent") in profiles.PROFILES else "general", b.get("source", "texte"),
+                                     float(cts) / 1000 if isinstance(cts, (int, float)) else None)
 
     def conv_get(self, q, b, i):
         c = self.app.conversations.get(int(i))
@@ -205,12 +212,19 @@ class Api:
 
     def task_action(self, q, b, i, action):
         tm, tid = self.app.tasks, int(i)
-        return {"cancel": tm.cancel, "pause": tm.pause, "resume": tm.resume, "complete": tm.complete_todo, "start": tm.start}[action](tid)
+        if action == "cancel":
+            return tm.cancel(tid, reason=b.get("reason"))
+        return {"pause": tm.pause, "resume": tm.resume, "complete": tm.complete_todo, "start": tm.start}[action](tid)
 
     def confirm(self, q, b, i):
         app = self.app
         approve = bool(b.get("approve"))
         conf = app.permissions.decide(int(i), approve)
+        if approve and b.get("remember"):
+            pol = app.permissions.add_policy(conf["tool"], loads(conf["args"], {}))
+            if pol:
+                app.logbook.log("autorisation_prealable", f"Autorisation préalable créée : {conf['tool']} sur {pol['scope']}", "attention",
+                                conf.get("task_id"), tool=conf["tool"], data=pol)
         app.logbook.log("autorisation_accordee" if approve else "autorisation_refusee",
                         f"Confirmation #{i} {'accordée' if approve else 'refusée'} : {conf['action']}", "succes" if approve else "attention",
                         conf.get("task_id"), tool=conf["tool"])
@@ -351,6 +365,63 @@ class Api:
         ok = bool(c.data and c.data.get("ok"))
         return {"ok": ok, "provider": c.provider, "model": c.model, "ms": int((time.time() - t0) * 1000),
                 "detail": "réponse JSON valide" if ok else "réponse reçue mais invalide"}
+
+    def permissions_view(self, q, b):
+        from .permissions import LEVELS, POLICY_TOOLS
+        app = self.app
+        s = app.settings
+        return {"level": app.permissions.level(), "levels": LEVELS, "mode": app.permissions.mode(),
+                "dirs": s.get("allowed_dirs"), "policies": app.permissions.policies(), "policy_tools": sorted(POLICY_TOOLS),
+                "tools": [{k: t[k] for k in ("id", "description", "risk", "category", "available", "enabled", "unavailable_reason")}
+                          for t in app.tools.listing()],
+                "voice": s.get("voice"), "summary": app.permissions.summary(),
+                "recent": app.db.all(
+                    "SELECT ts, kind, level, tool, message, task_id FROM events WHERE kind IN ('outil_appel','outil_erreur','autorisation_demandee',"
+                    "'autorisation_accordee','autorisation_refusee','autorisation_prealable','autorisation_utilisee') ORDER BY id DESC LIMIT 40")}
+
+    def permissions_revoke(self, q, b):
+        """Révoquer = restreindre : appliqué immédiatement, sans confirmation."""
+        app = self.app
+        kind = b.get("type")
+        if kind == "policy":
+            ok = app.permissions.revoke_policy(str(b.get("id", "")))
+        elif kind == "dir":
+            dirs = app.settings.get("allowed_dirs") or []
+            new = [d for d in dirs if d["path"] != b.get("path")]
+            if b.get("downgrade") and len(new) < len(dirs):          # écriture → lecture seule
+                new = [dict(d, mode="r") if d["path"] == b.get("path") else d for d in dirs]
+            ok = new != dirs
+            if ok:
+                app.settings.update({"allowed_dirs": new}, f"autorisation de dossier révoquée : {b.get('path')}")
+        else:
+            raise ValidationError("type : policy ou dir.")
+        if ok:
+            app.logbook.log("autorisation_revoquee", f"Autorisation révoquée ({kind})", "attention", data={k: v for k, v in b.items() if k != "type"})
+        return {"revoked": ok}
+
+    def permissions_tool(self, q, b):
+        app = self.app
+        tid = b.get("tool", "")
+        app.tools.get(tid)
+        cur = set(app.settings.get("tools_disabled") or [])
+        cur.discard(tid) if b.get("enabled") else cur.add(tid)
+        app.settings.update({"tools_disabled": sorted(cur)}, f"outil {tid} {'activé' if b.get('enabled') else 'désactivé'}")
+        return {"tool": tid, "enabled": bool(b.get("enabled"))}
+
+    def stop_all(self, q, b):
+        """Arrêt immédiat : tâches en cours annulées, voix coupée, navigateur piloté fermé, aperçus arrêtés."""
+        app = self.app
+        running = app.tasks.running()
+        for tid in running:
+            try:
+                app.tasks.cancel(tid, reason=b.get("reason"))
+            except JarvisError:
+                pass
+        app.voice.stop()
+        from .tools import browser
+        browser.shutdown(app)
+        app.logbook.log("arret_operations", f"Arrêt de toutes les opérations ({len(running)} tâche(s))", "attention")
+        return {"cancelled": running}
 
     def service_info(self, q, b):
         from . import service

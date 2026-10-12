@@ -1,5 +1,11 @@
 # Journal des versions
 
+## 0.5.0 — 2026-10-12 (prompt 6)
+- Vocal : envoi automatique par défaut (mode manuel en option), fin de phrase réglable, réponse lue phrase par phrase pendant la génération (flux réel du fournisseur), préchauffage du fournisseur, interruption vocale avec filtre d'écho, anti-doublon, réponse interrompue proprement.
+- Latence mesurée et affichée (premier fragment, premier son, total).
+- Autonomie : niveaux assisté / prudent / locale (défaut) / avancée ; suppressions récupérables automatiques en autonomie locale ; contenu suspect → retour aux confirmations.
+- Autorisations : page « Autorisations et autonomie » (voix, niveau, dossiers, autorisations préalables, outils, historique, latence, tout arrêter) ; révocation immédiate ; « ne plus demander ici » limité à un périmètre ; sélecteur de dossiers macOS ; outils désactivables.
+
 ## 0.4.0 — 2026-10-12 (prompt 5)
 - Voix : transcription affichée en direct et corrigeable avant envoi (ou envoi automatique), mains libres (micro rouvert après chaque réponse lue, « stop » pour sortir), mot d'activation « Jarvis » natif avec reconnaissance SUR L'APPAREIL uniquement, écoute suspendue pendant que JARVIS parle, « Couper le micro » arrête toute écoute.
 - États du noyau : prêt, écoute, transcription, réflexion, outil, tâche, JARVIS parle, accord, terminé, erreur, service indisponible.

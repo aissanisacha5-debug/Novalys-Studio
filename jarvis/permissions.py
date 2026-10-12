@@ -19,9 +19,18 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import paths
 from .db import Database, dumps, loads, now
-from .errors import ConfirmationRequired, PermissionDenied, ValidationError
+from .errors import ConfirmationRequired, JarvisError, PermissionDenied, ValidationError
 
 RISKS = ("faible", "modere", "eleve")
+ACTION_MODES = ("execution_supervisee", "vocal", "autonomie_limitee", "developpement")
+LEVELS = {
+    "assiste": "Assisté : JARVIS lit et cherche seul ; il propose et attend votre accord pour toute modification.",
+    "prudent": "Prudent : modifications locales réversibles automatiques ; accord pour toute action à risque élevé.",
+    "locale": "Autonomie locale : en plus, les suppressions récupérables (corbeille JARVIS) dans vos dossiers autorisés sont automatiques.",
+    "avancee": "Autonomie avancée : comme l'autonomie locale, avec des enchaînements plus longs (30 tours, 3 nouvelles tentatives).",
+}
+# Outils pour lesquels une autorisation préalable (« ne plus demander ») est possible, limitée à un périmètre.
+POLICY_TOOLS = {"fichier_supprimer", "commande_executer"}
 
 # Niveau de risque autorisé par mode : (autorisé sans confirmation, autorisé avec confirmation)
 MODE_POLICY: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
@@ -99,10 +108,27 @@ class Permissions:
     def mode(self) -> str:
         return self.settings.get("autonomy.mode", "execution_supervisee")
 
-    def check_risk(self, risk: str, mode: Optional[str] = None) -> str:
-        """Retourne 'ok' ou 'confirmation' ; lève PermissionDenied si le mode l'interdit."""
+    def level(self) -> str:
+        return self.settings.get("autonomy.level", "locale")
+
+    def check_risk(self, risk: str, mode: Optional[str] = None, tool: Any = None, args: Optional[Dict[str, Any]] = None) -> str:
+        """Retourne 'ok' ou 'confirmation' ; lève PermissionDenied si le mode l'interdit.
+        Le niveau d'autonomie ajuste les modes d'action : assisté (confirmation dès le risque modéré), prudent
+        (confirmation au risque élevé), autonomie locale et avancée (les suppressions locales récupérables
+        dans un dossier autorisé en écriture sont automatiques ; tout le reste du risque élevé reste confirmé)."""
         mode = mode or self.mode()
         free, confirm = MODE_POLICY.get(mode, ((), ()))
+        if mode in ACTION_MODES:
+            lvl = self.level()
+            if lvl == "assiste":
+                free, confirm = ("faible",), ("modere", "eleve")
+            elif risk == "eleve" and lvl in ("locale", "avancee") and tool is not None and getattr(tool, "local_reversible", None):
+                lr = tool.local_reversible
+                try:
+                    if (lr(self, args or {}) if callable(lr) else bool(lr)):
+                        return "ok"
+                except JarvisError:
+                    pass
         if risk == "modere" and self.settings.get("confirmations.moderate_needs_confirmation") and risk in free:
             return "confirmation"
         if risk in free:
@@ -172,6 +198,58 @@ class Permissions:
              describe.get("consequences"), describe.get("data"), 1 if describe.get("reversible") else 0,
              describe.get("expected"), risk, now()),
         )
+
+    # -- autorisations préalables (périmètre précis, révocables) -----------------------------
+    def policies(self) -> List[Dict[str, Any]]:
+        return list(self.settings.get("policies") or [])
+
+    def _scope_for(self, tool: str, args: Dict[str, Any]) -> Optional[str]:
+        if tool == "fichier_supprimer" and args.get("path"):
+            return str(self.resolve_path(args["path"], write=True).parent)
+        if tool == "commande_executer" and args.get("command"):
+            import shlex
+            parts = shlex.split(args["command"])
+            return " ".join(parts[:2]) if parts else None
+        return None
+
+    def matching_policy(self, tool: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if tool not in POLICY_TOOLS:
+            return None
+        for p in self.policies():
+            if p.get("tool") != tool or (p.get("expires_at") and p["expires_at"] < now()[:19]):
+                continue
+            try:
+                if tool == "fichier_supprimer":
+                    target = self.resolve_path(args.get("path", ""), write=True)      # le périmètre ne dispense jamais du contrôle des dossiers
+                    if _is_within(target, Path(p["scope"])):
+                        return p
+                elif tool == "commande_executer":
+                    cmd = " ".join(__import__("shlex").split(args.get("command", "")))
+                    if cmd == p["scope"] or cmd.startswith(p["scope"] + " "):
+                        return p
+            except (JarvisError, ValueError):
+                continue
+        return None
+
+    def add_policy(self, tool: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if tool not in POLICY_TOOLS:
+            return None
+        scope = self._scope_for(tool, args)
+        if not scope:
+            return None
+        import uuid
+        pol = {"id": uuid.uuid4().hex[:8], "tool": tool, "scope": scope, "created_at": now()[:19], "expires_at": None}
+        cur = [p for p in self.policies() if not (p["tool"] == tool and p["scope"] == scope)]
+        self.settings.update({"policies": cur + [pol]}, f"autorisation préalable : {tool} sur {scope}")
+        return pol
+
+    def revoke_policy(self, pid: str) -> bool:
+        cur = self.policies()
+        new = [p for p in cur if p["id"] != pid]
+        if len(new) == len(cur):
+            return False
+        self.settings.update({"policies": new}, f"autorisation préalable {pid} révoquée")
+        return True
 
     def decide(self, confirmation_id: int, approve: bool) -> Dict[str, Any]:
         row = self.db.one("SELECT * FROM confirmations WHERE id=?", (confirmation_id,))

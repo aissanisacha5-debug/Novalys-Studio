@@ -19,8 +19,8 @@ export async function render(view, params, app) {
     const text = draft.value.trim(); if (!text) return;
     try {
       app.voice.awaitingReply = true;
-      const r = await post("/api/chat", { text, conversation_id: convId, source: "voix" });
-      convId = r.conversation_id; app.currentConv = convId; draft.value = "";
+      const r = await post("/api/chat", { text, conversation_id: convId, source: "voix", client_ts: Date.now() });
+      convId = r.conversation_id; app.currentConv = convId; app.voice.lastTaskId = r.task_id; draft.value = "";
       live.textContent = "Demande envoyée : JARVIS réfléchit…";
     } catch (e) { app.voice.awaitingReply = false; handleError(e); }
   };
