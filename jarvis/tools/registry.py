@@ -182,7 +182,8 @@ class ToolRegistry:
         risk = tool.risk_for(clean)
         decision = app.permissions.check_risk(risk, ctx.mode, None if ctx.tainted else tool, clean)
         if decision == "confirmation":
-            policy = app.permissions.matching_policy(tool_id, clean)
+            # contenu suspect lu dans la tâche : aucune autorisation préalable ne s'applique, l'accord est toujours demandé
+            policy = None if ctx.tainted else app.permissions.matching_policy(tool_id, clean)
             if policy:
                 app.logbook.log("autorisation_prealable", f"Autorisation préalable utilisée ({policy['scope']})", "info",
                                 ctx.task_id, ctx.conversation_id, tool_id, {"policy": policy["id"]})

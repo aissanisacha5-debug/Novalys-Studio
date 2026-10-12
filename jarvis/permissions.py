@@ -31,6 +31,7 @@ LEVELS = {
 }
 # Outils pour lesquels une autorisation préalable (« ne plus demander ») est possible, limitée à un périmètre.
 POLICY_TOOLS = {"fichier_supprimer", "commande_executer"}
+INTERPRETERS = {"python3", "python", "node", "npx", "npm", "swift", "sh", "bash", "zsh", "env", "xargs", "osascript", "perl", "ruby"}
 
 # Niveau de risque autorisé par mode : (autorisé sans confirmation, autorisé avec confirmation)
 MODE_POLICY: Dict[str, Tuple[Tuple[str, ...], Tuple[str, ...]]] = {
@@ -209,7 +210,10 @@ class Permissions:
         if tool == "commande_executer" and args.get("command"):
             import shlex
             parts = shlex.split(args["command"])
-            return " ".join(parts[:2]) if parts else None
+            # Jamais d'autorisation durable pour un interpréteur (exécuterait n'importe quel code) ; sinon : commande EXACTE.
+            if not parts or os.path.basename(parts[0]) in INTERPRETERS:
+                return None
+            return " ".join(parts)
         return None
 
     def matching_policy(self, tool: str, args: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -225,7 +229,7 @@ class Permissions:
                         return p
                 elif tool == "commande_executer":
                     cmd = " ".join(__import__("shlex").split(args.get("command", "")))
-                    if cmd == p["scope"] or cmd.startswith(p["scope"] + " "):
+                    if cmd == p["scope"]:                       # commande identique, arguments compris
                         return p
             except (JarvisError, ValueError):
                 continue

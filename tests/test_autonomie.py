@@ -84,6 +84,12 @@ class AutonomieTests(unittest.TestCase):
         (paths.workspace_dir() / "brouillons" / "c.txt").write_text("c")
         with self.assertRaises(ConfirmationRequired):
             self.call("fichier_supprimer", path="brouillons/c.txt")
+        self.assertIsNone(self.app.permissions.add_policy("commande_executer", {"command": "python3 -c print(1)"}), "jamais pour un interpréteur")
+        p2 = self.app.permissions.add_policy("commande_executer", {"command": "git push origin main"})
+        self.assertTrue(self.app.permissions.matching_policy("commande_executer", {"command": "git push origin main"}))
+        self.assertIsNone(self.app.permissions.matching_policy("commande_executer", {"command": "git push origin main --force"}),
+                          "commande exacte seulement")
+        self.app.permissions.revoke_policy(p2["id"])
         self.assertIsNone(self.app.permissions.add_policy("navigateur_envoyer_formulaire", {"selector": "form"}),
                           "jamais d'autorisation préalable pour une action externe")
 
