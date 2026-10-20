@@ -25,11 +25,14 @@ import wave
 from pathlib import Path
 from typing import Dict, List
 
-# Profil mesuré sur la vidéo de référence (93 s, voix masculine, musique de fond) : voir docs/NOVA.md § 5.
-REFERENCE = {"f0_mediane": 140, "f0_p10": 106, "f0_p90": 208, "intonation_demi_tons": 4.4, "syllabes_s": 5.0}
+# Profil de la voix de l'ASSISTANT dans la vidéo de référence (12 à 78 s ; 0-11 s et 81-86 s = la personne qui lui
+# parle, ~140 Hz). Audio enregistré au téléphone : fondamentale atténuée, F0 lue sur l'écart des harmoniques
+# (≈ 100-110 Hz) et confirmée par une seconde mesure sur le Mac. Voir docs/NOVA.md § 5.
+REFERENCE = {"f0_mediane": 108, "f0_p10": 79, "f0_p90": 168, "intonation_demi_tons": 6.0, "syllabes_s": 5.0}
 PHRASE = ("Bonjour Sacha. Hier, tu as eu trois rendez-vous. Sonia est la plus chaude : elle veut centraliser ses "
           "communications. Je t'ai préparé la proposition, tu veux que je l'envoie ?")
 RATES = (175, 190, 205, 220)
+PITCHES = (None, 35, 40, 45)     # commande [[pbas N]] de say (hauteur de base) ; ignorée par certaines voix : on le mesure
 SR = 8000
 
 
@@ -103,15 +106,20 @@ def french_voices() -> List[str]:
     out = subprocess.run(["say", "-v", "?"], capture_output=True, timeout=20).stdout.decode("utf-8", "replace")
     names = []
     for line in out.splitlines():
-        m = re.match(r"^(.+?)\s{2,}(fr_[A-Z]{2})\s+#", line)
+        m = re.match(r"^(.+?)\s+(fr_[A-Z]{2})\s+#", line)
         if m:
             names.append(m.group(1).strip())
     return names
 
 
-def render(voice: str, rate: int, dest: Path) -> Path:
+def render(voice: str, rate: int, dest: Path, pitch=None) -> Path:
     aiff = dest.with_suffix(".aiff")
-    subprocess.run(["say", "-v", voice, "-r", str(rate), "-o", str(aiff), PHRASE], check=True, timeout=120)
+    text = (f"[[pbas {pitch}]] " if pitch else "") + PHRASE
+    r = subprocess.run(["say", "-v", voice, "-r", str(rate), "-o", str(aiff), text], timeout=120)
+    if r.returncode and " (" in voice:   # « Thomas (Français (France)) » : say attend parfois le nom court
+        subprocess.run(["say", "-v", voice.split(" (")[0], "-r", str(rate), "-o", str(aiff), text], check=True, timeout=120)
+    elif r.returncode:
+        raise RuntimeError(f"say a échoué pour {voice}")
     subprocess.run(["afconvert", "-f", "WAVE", "-d", f"LEI16@{SR}", "-c", "1", str(aiff), str(dest)], check=True, timeout=60)
     aiff.unlink()
     return dest
@@ -121,6 +129,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--profil", nargs="*", help="profil de fichiers WAV au lieu du banc")
     ap.add_argument("--sortie", default=str(Path.home() / "JARVIS" / "voix-banc"))
+    ap.add_argument("--voix", nargs="*", help="limiter à ces voix")
+    ap.add_argument("--hauteur", action="store_true", help="tester aussi [[pbas N]] (hauteur) pour chaque voix et débit")
     a = ap.parse_args()
     if a.profil:
         for f in a.profil:
@@ -130,27 +140,29 @@ def main() -> None:
         raise SystemExit("say/afconvert introuvables : ce banc fonctionne sur macOS.")
     out = Path(a.sortie)
     out.mkdir(parents=True, exist_ok=True)
-    voices = french_voices()
-    print("Voix françaises installées :", ", ".join(voices) or "aucune")
+    voices = a.voix or french_voices()
+    print("Voix françaises testées :", ", ".join(voices) or "aucune")
     rows = []
     for v in voices:
         for r in RATES:
-            f = out / f"{re.sub(r'[^A-Za-z0-9]+', '-', v).strip('-')}-{r}.wav"
-            try:
-                p = profile(read_wav(render(v, r, f)))
-            except Exception as e:  # noqa: BLE001
-                print(f"  {v} {r} : échec ({e})")
-                continue
-            rows.append({"voix": v, "debit": r, **p, "distance": distance(p), "fichier": str(f)})
-            print(f"  {v:28s} {r} mots/min  F0 {p['f0_mediane']:3d} Hz  intonation {p['intonation_demi_tons']} dt  "
-                  f"{p['syllabes_s']} syll/s  → distance {rows[-1]['distance']}")
+            for h in (PITCHES if a.hauteur else (None,)):
+                f = out / f"{re.sub(r'[^A-Za-z0-9]+', '-', v).strip('-')}-{r}{f'-h{h}' if h else ''}.wav"
+                try:
+                    p = profile(read_wav(render(v, r, f, h)))
+                except Exception as e:  # noqa: BLE001
+                    print(f"  {v} {r} : échec ({e})")
+                    continue
+                rows.append({"voix": v, "debit": r, "hauteur": h, **p, "distance": distance(p), "fichier": str(f)})
+                print(f"  {v:28s} {r} mots/min {('pbas ' + str(h)) if h else '':8s} F0 {p['f0_mediane']:3d} Hz  "
+                      f"intonation {p['intonation_demi_tons']} dt  {p['syllabes_s']} syll/s  → distance {rows[-1]['distance']}")
     rows.sort(key=lambda x: x["distance"])
     (out / "classement.json").write_text(json.dumps({"reference": REFERENCE, "phrase": PHRASE, "resultats": rows},
                                                     ensure_ascii=False, indent=1), encoding="utf-8")
     print("\nRéférence :", REFERENCE)
     print("Les plus proches :")
     for x in rows[:5]:
-        print(f"  {x['voix']} à {x['debit']} mots/min (distance {x['distance']}) : {x['fichier']}")
+        print(f"  {x['voix']} à {x['debit']} mots/min{' pbas ' + str(x['hauteur']) if x['hauteur'] else ''} "
+              f"(distance {x['distance']}) : {x['fichier']}")
 
 
 if __name__ == "__main__":

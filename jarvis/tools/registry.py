@@ -52,7 +52,8 @@ SEARCH_TOOLS = frozenset({
     "navigateur_capture", "memoire_rechercher", "gmail_rechercher", "gmail_lire", "agenda_consulter", "journal_consulter",
     "fichier_lire", "dossier_lister", "fichier_rechercher", "contenu_rechercher", "fichiers_comparer", "doublons_detecter",
     "tache_consulter", "projet_consulter", "parametres_consulter", "agence_consulter", "systeme_etat", "applications_lister",
-    "processus_lister", "date_heure", "diagnostic_lancer",
+    "processus_lister", "date_heure", "diagnostic_lancer", "memoire_lister", "gmail_a_traiter", "automatisation_lister",
+    "service_etat",
 })
 
 

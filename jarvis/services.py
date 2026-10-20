@@ -117,6 +117,17 @@ def macos_notification(title: str, body: str) -> bool:
 
 
 # -- Voix (synthèse native macOS) ------------------------------------------------------
+def parse_voices(out: str) -> List[Dict[str, str]]:
+    """Sortie de `say -v ?` → [{name, locale}]. Un seul espace peut séparer le nom de la langue
+    (« Thomas (Français (France)) fr_FR ») : les voix de ce format étaient auparavant ignorées."""
+    res = []
+    for line in out.splitlines():
+        m = re.match(r"^(.+?)\s+([a-z]{2}_[A-Z]{2})\s+#", line)
+        if m:
+            res.append({"name": m.group(1).strip(), "locale": m.group(2)})
+    return res
+
+
 class Voice:
     def __init__(self, settings, bus):
         self.settings = settings
@@ -131,13 +142,7 @@ class Voice:
     def voices(self) -> List[Dict[str, str]]:
         if not shutil.which("say"):
             return []
-        out = subprocess.run(["say", "-v", "?"], capture_output=True, timeout=10).stdout.decode("utf-8", "replace")
-        res = []
-        for line in out.splitlines():
-            m = re.match(r"^(.+?)\s{2,}([a-z]{2}_[A-Z]{2})\s+#", line)
-            if m:
-                res.append({"name": m.group(1).strip(), "locale": m.group(2)})
-        return res
+        return parse_voices(subprocess.run(["say", "-v", "?"], capture_output=True, timeout=10).stdout.decode("utf-8", "replace"))
 
     def devices(self) -> List[str]:
         try:
@@ -170,7 +175,7 @@ class Voice:
         text = self.clean(text)
         limit = cfg.get("max_spoken_chars", 600)
         if len(text) > limit:
-            text = text[:limit].rsplit(" ", 1)[0] + ". La suite est affichée à l'écran."
+            text = text[:limit].rsplit(" ", 1)[0] + ". Je m'arrête là ; demande-moi la suite si tu la veux."
         self.stop()
         self.enqueue(text)
         return {"speaking": True, "chars": len(text)}
