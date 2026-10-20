@@ -32,7 +32,7 @@ REFERENCE = {"f0_mediane": 108, "f0_p10": 79, "f0_p90": 168, "intonation_demi_to
 PHRASE = ("Bonjour Sacha. Hier, tu as eu trois rendez-vous. Sonia est la plus chaude : elle veut centraliser ses "
           "communications. Je t'ai préparé la proposition, tu veux que je l'envoie ?")
 RATES = (175, 190, 205, 220)
-PITCHES = (None, 35, 40, 45)     # commande [[pbas N]] de say (hauteur de base) ; ignorée par certaines voix : on le mesure
+PITCHES = (None, 40, 42, 45)     # commande [[pbas N]] de say (hauteur de base) ; ignorée par certaines voix : on le mesure
 SR = 8000
 
 
@@ -59,7 +59,7 @@ def percentile(v: List[float], p: float) -> float:
 
 def profile(x: List[float]) -> Dict[str, float]:
     hop, win = SR // 100, SR // 25
-    lo, hi = SR // 260, SR // 70
+    lo, hi = SR // 260, SR // 55       # plancher 55 Hz : une voix abaissée peut descendre sous 70 Hz
     hann = [0.5 - 0.5 * math.cos(2 * math.pi * i / (win - 1)) for i in range(win)]
     f0, en = [], []
     for start in range(0, len(x) - win - hi, hop):

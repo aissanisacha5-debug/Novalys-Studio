@@ -46,7 +46,8 @@ def default_settings() -> Dict[str, Any]:
             "tts_engine": "macos_say",
             "voice": "Thomas",
             "volume": 0.8,
-            "rate": 190,
+            "rate": 200,       # ≈ 5 syllabes/s, le débit de la voix de la vidéo de référence (docs/NOVA.md § 5)
+            "pitch": 42,       # [[pbas 42]] : Thomas descend de 130 à ≈110 Hz, la hauteur de la voix de référence ; 0 = hauteur d'origine
             "auto_speak": False,
             "auto_send": True,
             "barge_in": True,
@@ -219,6 +220,8 @@ class Settings:
             raise ValidationError("voice.volume doit être entre 0 et 1.")
         if "rate" in vo and not (isinstance(vo["rate"], int) and 80 <= vo["rate"] <= 400):
             raise ValidationError("voice.rate doit être entre 80 et 400 mots/minute.")
+        if "pitch" in vo and not (isinstance(vo["pitch"], int) and (vo["pitch"] == 0 or 30 <= vo["pitch"] <= 70)):
+            raise ValidationError("voice.pitch : 0 (hauteur d'origine) ou entre 30 et 70.")
         if "allowed_dirs" in patch:
             dirs = patch["allowed_dirs"]
             if not isinstance(dirs, list):

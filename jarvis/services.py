@@ -165,7 +165,8 @@ class Voice:
         dev = cfg.get("output_device")
         if dev and dev != "defaut":
             args += ["-a", dev]
-        return args + [f"[[volm {vol:.2f}]] " + text]
+        pitch = int(cfg.get("pitch") or 0)
+        return args + [f"[[volm {vol:.2f}]] " + (f"[[pbas {pitch}]] " if pitch else "") + text]
 
     def speak(self, text: str) -> Dict[str, Any]:
         """Lit un texte complet (remplace toute lecture en cours)."""

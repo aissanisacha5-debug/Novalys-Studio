@@ -138,7 +138,7 @@ def v_script(ctx, a, r):
     return (CONFIRME, "code de sortie 0") if r["exit_code"] == 0 else (ECHOUE, f"code de sortie {r['exit_code']}")
 
 
-SETTABLE = {"assistant.detail_level": ("court", "normal", "detaille"), "voice.volume": float, "voice.rate": int, "voice.voice": str,
+SETTABLE = {"assistant.detail_level": ("court", "normal", "detaille"), "voice.volume": float, "voice.rate": int, "voice.voice": str, "voice.pitch": int,
             "voice.auto_speak": bool, "appearance.animations": ("normales", "reduites", "aucune"), "notifications.enabled": bool}
 
 

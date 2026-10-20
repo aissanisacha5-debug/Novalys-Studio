@@ -124,6 +124,20 @@ class AssistantOutilsTests(unittest.TestCase):
 
 
 class VoixMacTests(unittest.TestCase):
+    def test_voix_reglee_sur_la_reference(self):
+        env = TestEnv()
+        try:
+            app = env.make_app()
+            args = app.voice._args("Bonjour")
+            self.assertEqual(args[:5], ["say", "-v", "Thomas", "-r", "200"])
+            self.assertIn("[[pbas 42]] Bonjour", args[-1])
+            app.settings.update({"voice": {"pitch": 0}}, "test")
+            self.assertNotIn("pbas", app.voice._args("Bonjour")[-1])
+            with self.assertRaises(Exception):
+                app.settings.update({"voice": {"pitch": 99}}, "test")
+        finally:
+            env.close()
+
     def test_liste_des_voix_avec_un_seul_espace(self):
         out = ("Thomas (Français (France)) fr_FR    # Bonjour, je m'appelle Thomas.\n"
                "Audrey (Premium)    fr_FR    # Bonjour, je m'appelle Audrey.\n"

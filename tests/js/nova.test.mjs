@@ -207,6 +207,9 @@ test("choix de la voix : la plus naturelle en français", () => {
     { name: "Microsoft Denise Online (Natural) - French (France)", lang: "fr-FR" }, { name: "eSpeak French", lang: "fr" },
   ];
   assert.match(pickVoice(voices).name, /Denise/);
+  // à qualité égale, voix masculine (la voix de référence de Nova est grave)
+  assert.match(pickVoice([...voices, { name: "Microsoft Henri Online (Natural) - French (France)", lang: "fr-FR" }]).name, /Henri/);
+  assert.match(pickVoice([{ name: "Amélie", lang: "fr-FR" }, { name: "Thomas", lang: "fr-FR" }]).name, /Thomas/);
   assert.equal(pickVoice([{ name: "Alex", lang: "en-US" }]), null);
 });
 
