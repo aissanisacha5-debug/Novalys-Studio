@@ -1,0 +1,13 @@
+/* Accueil Nova : plein écran, un seul noyau, aucun texte visible. Couleurs : jetons de tokens.css uniquement. */
+html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; overscroll-behavior: none; }
+body { -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+.nova { position: fixed; inset: 0; display: grid; place-items: center; cursor: pointer; outline: none; }
+.nova:focus-visible .nova-core { filter: drop-shadow(0 0 2px var(--accent-line)); }
+.nova-core { width: min(92vmin, 720px); height: min(92vmin, 720px); }
+.nova-console {
+  position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom));
+  width: 28px; height: 28px; opacity: 0.18; color: var(--text-muted); transition: opacity 0.2s;
+}
+.nova-console:hover, .nova-console:focus-visible { opacity: 0.7; }
+.nova-console svg { width: 100%; height: 100%; fill: currentColor; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

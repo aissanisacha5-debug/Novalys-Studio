@@ -46,6 +46,21 @@ class ToolContext:
             raise Cancelled("Tâche annulée.")
 
 
+# Outils qui cherchent ou lisent sans rien modifier : le noyau de Nova affiche alors « recherche » au lieu d'« exécution ».
+SEARCH_TOOLS = frozenset({
+    "web_rechercher", "web_lire_page", "web_verifier_liens", "site_auditer", "navigateur_ouvrir", "navigateur_suivre_lien",
+    "navigateur_capture", "memoire_rechercher", "gmail_rechercher", "gmail_lire", "agenda_consulter", "journal_consulter",
+    "fichier_lire", "dossier_lister", "fichier_rechercher", "contenu_rechercher", "fichiers_comparer", "doublons_detecter",
+    "tache_consulter", "projet_consulter", "parametres_consulter", "agence_consulter", "systeme_etat", "applications_lister",
+    "processus_lister", "date_heure", "diagnostic_lancer",
+})
+
+
+def tool_phase(tool_id: str) -> str:
+    """« recherche » pour une lecture ou une recherche, « execution » pour toute action qui agit."""
+    return "recherche" if tool_id in SEARCH_TOOLS else "execution"
+
+
 @dataclass
 class Tool:
     id: str
@@ -212,7 +227,7 @@ class ToolRegistry:
         app = self.app
         app.logbook.log("outil_appel", f"Outil {tool_id}", "info", ctx.task_id, ctx.conversation_id, tool_id,
                         {"args": _short(clean)})
-        app.bus.publish({"type": "activity", "state": "outil", "tool": tool_id, "task_id": ctx.task_id})
+        app.bus.publish({"type": "activity", "state": "outil", "tool": tool_id, "task_id": ctx.task_id, "phase": tool_phase(tool_id)})
         t0 = time.time()
         result_box: Dict[str, Any] = {}
 

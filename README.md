@@ -3,6 +3,9 @@
 Assistant personnel et professionnel de Sacha (Novalys Studio), local, sur Mac.
 Il comprend une demande, planifie, agit avec de vrais outils, **vérifie** le résultat et rend compte, sous un système de permissions strict.
 
+## Nova (transformation en cours)
+JARVIS devient **Nova**, assistant vocal accessible sur ordinateur et téléphone. L'accueil (`/`) est désormais un noyau lumineux plein écran : touchez-le et parlez. L'interface complète reste sur `/console`. Audit, plan et état : [docs/NOVA.md](docs/NOVA.md).
+
 ## Installer et lancer
 - **Installer** : ouvrir `dist/JARVIS-0.3.0.dmg`, glisser JARVIS dans Applications (ou `python3 jarvis.py install`). Détails : [docs/INSTALLATION.md](docs/INSTALLATION.md).
 - **Lancer** : double-clic sur **JARVIS** (Dock, Applications ou Spotlight). Aucun terminal, aucun navigateur, aucune autre application de conversation n'est nécessaire.

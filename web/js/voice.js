@@ -4,6 +4,7 @@
 // réponse lue) ; 3) mot d'activation « Jarvis » (application seulement, reconnaissance SUR L'APPAREIL uniquement).
 import { patch, post } from "./api.js";
 import { $, handleError, toast } from "./ui.js";
+import { isEcho } from "./echo.js";
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jarvisVoice);
@@ -51,12 +52,7 @@ export class Voice {
   }
 
   // Écho : la phrase captée ressemble à ce que JARVIS est en train de dire (haut-parleurs) → ignorée.
-  isEcho(text) {
-    const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 2);
-    const heard = norm(text); if (!heard.length) return true;
-    const said = new Set(norm(this.spokenText));
-    return heard.filter((w) => said.has(w)).length / heard.length >= 0.6;
-  }
+  isEcho(text) { return isEcho(text, this.spokenText); }
 
   onResult(text, final, confidence) {
     if (this.bargeMode && this.speaking) {

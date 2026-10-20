@@ -18,6 +18,8 @@ const STATES = {
   ecoute:       { label: "Écoute active",         c: "bright",    energy: 0.55, speed: 0.3,  pulse: 1.0,  arcs: 1 },
   reflexion:    { label: "Réflexion",             c: "emerald",   energy: 0.45, speed: 0.55, pulse: 0.35, arcs: 2 },
   outil:        { label: "Utilise un outil",      c: "bright",    energy: 0.7,  speed: 1.1,  pulse: 0.3,  arcs: 3, focus: true },
+  recherche:    { label: "Recherche",             c: "champagne", energy: 0.6,  speed: 0.9,  pulse: 0.45, arcs: 2, focus: true },
+  execution:    { label: "Exécution",             c: "bright",    energy: 0.75, speed: 1.2,  pulse: 0.3,  arcs: 3, progress: true },
   tache:        { label: "Tâche en cours",        c: "emerald",   energy: 0.55, speed: 0.7,  pulse: 0.3,  arcs: 2, progress: true },
   autorisation: { label: "Attend votre accord",   c: "champagne", energy: 0.4,  speed: 0.2,  pulse: 0.6,  arcs: 1 },
   erreur:       { label: "Erreur",                c: "red",       energy: 0.35, speed: 0.1,  pulse: 0.8,  arcs: 0 },

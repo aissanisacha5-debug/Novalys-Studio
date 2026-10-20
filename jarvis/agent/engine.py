@@ -144,8 +144,9 @@ def partial_message(partial_json: str) -> str:
 class LiveSpeaker:
     """Lecture vocale en flux : chaque phrase complète du message est lue dès qu'elle arrive."""
 
-    def __init__(self, app, tid: int):
+    def __init__(self, app, tid: int, output: str = "mac"):
         self.app, self.tid, self.done, self.first_audio = app, tid, 0, None
+        self.output = output                     # « mac » : voix du Mac (say) ; « client » : l'appareil de Sacha lit (Nova)
 
     def feed(self, partial_json: str) -> None:
         text = partial_message(partial_json)
@@ -165,6 +166,11 @@ class LiveSpeaker:
     def _say(self, seg: str) -> None:
         if self.first_audio is None:
             self.first_audio = time.time()
+        if self.output == "client":
+            text = self.app.voice.clean(seg).strip()
+            if text:
+                self.app.bus.publish({"type": "speech", "task_id": self.tid, "text": text})
+            return
         self.app.voice.enqueue(seg)
 
 
@@ -282,7 +288,7 @@ class AgentRunner:
             steps = self._steps()
             sid = self._add_step("modele")
             t0 = time.time()
-            live = LiveSpeaker(app, self.tid) if app.tasks.live_voice.get(self.tid) else None
+            live = LiveSpeaker(app, self.tid, app.tasks.live_voice[self.tid]) if app.tasks.live_voice.get(self.tid) else None
             app.tasks.mark_latency(self.tid, "model_start", time.time())
             try:
                 comp = app.providers.complete(system_prompt(app, self._tool_specs(mode), t.get("agent") or "general", mode),

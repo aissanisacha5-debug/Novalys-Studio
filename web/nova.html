@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="jarvis-token" content="__JARVIS_TOKEN__">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080A0B">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Nova</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/nova.css">
+</head>
+<body>
+  <main class="nova" id="nova" data-state="repos" role="button" tabindex="0" aria-label="Parler à Nova">
+    <canvas class="nova-core" id="nova-core" aria-hidden="true"></canvas>
+    <p class="sr-only" id="nova-state" aria-live="polite"></p>
+  </main>
+  <a class="nova-console" href="/console" aria-label="Ouvrir la console">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+  </a>
+  <script type="module" src="/js/nova/main.js"></script>
+</body>
+</html>
