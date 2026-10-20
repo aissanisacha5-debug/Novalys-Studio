@@ -152,10 +152,13 @@ class Settings:
         # Voix Nova : l'ancien débit par défaut (190, jamais modifié, sans réglage de hauteur) passe au débit de la
         # voix de référence. Une fois « pitch » enregistré, plus rien n'est touché ; version restaurable dans l'historique.
         vo = stored.get("voice") if isinstance(stored.get("voice"), dict) else None
-        upgrade = bool(vo) and "pitch" not in vo and vo.get("rate") == 190
+        # (seulement pour Thomas : la hauteur 42 est calibrée sur lui ; une autre voix choisie par Sacha reste intacte)
+        upgrade = bool(vo) and "pitch" not in vo and vo.get("rate") == 190 and str(vo.get("voice", "Thomas")).startswith("Thomas")
         if upgrade:
             vo["rate"] = 200
             vo["pitch"] = 42
+        elif vo and "pitch" not in vo:
+            vo["pitch"] = 0
         with self._lock:
             self._cache = _deep_merge(default_settings(), stored)
         if not row:

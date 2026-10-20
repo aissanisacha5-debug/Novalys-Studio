@@ -160,6 +160,11 @@ class VoixMacTests(unittest.TestCase):
             self.assertEqual((s.get("voice.rate"), s.get("voice.pitch")), (200, 42))
             s.update({"voice": {"rate": 190}}, "choix de Sacha")
             self.assertEqual(Settings(app.db).get("voice.rate"), 190)      # un choix explicite reste respecté
+            prefs = Settings(app.db).all()
+            prefs["voice"].update({"voice": "Audrey (Premium)", "rate": 190}); del prefs["voice"]["pitch"]
+            app.db.execute("UPDATE settings SET value=? WHERE key='prefs'", (dumps(prefs),))
+            s = Settings(app.db)                                              # autre voix choisie : ni débit ni hauteur modifiés
+            self.assertEqual((s.get("voice.voice"), s.get("voice.rate"), s.get("voice.pitch")), ("Audrey (Premium)", 190, 0))
         finally:
             env.close()
 
