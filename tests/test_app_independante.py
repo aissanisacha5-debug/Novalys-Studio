@@ -163,24 +163,24 @@ class RelocationTests(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
-@unittest.skipUnless((ROOT / "dist" / "JARVIS.app").exists(), "application non construite (python3 jarvis.py build)")
+@unittest.skipUnless((ROOT / "dist" / "Nova.app").exists(), "application non construite (python3 jarvis.py build)")
 class ArtifactTests(unittest.TestCase):
     def test_application_signee_et_complete(self):
-        app = ROOT / "dist" / "JARVIS.app"
+        app = ROOT / "dist" / "Nova.app"
         with open(app / "Contents" / "Info.plist", "rb") as f:
             info = plistlib.load(f)
         self.assertEqual(info["CFBundleIdentifier"], "studio.novalys.jarvis")
         self.assertIn("NSMicrophoneUsageDescription", info)
         self.assertIn("NSSpeechRecognitionUsageDescription", info)
-        self.assertTrue((app / "Contents" / "MacOS" / "JARVIS").stat().st_mode & 0o111)
-        self.assertTrue((app / "Contents" / "Resources" / "JARVIS.icns").exists())
+        self.assertTrue((app / "Contents" / "MacOS" / "Nova").stat().st_mode & 0o111)
+        self.assertTrue((app / "Contents" / "Resources" / "Nova.icns").exists())
         self.assertTrue((app / "Contents" / "Resources" / "app" / "jarvis.py").exists())
         self.assertFalse(list((app / "Contents" / "Resources" / "app").rglob("*.db")), "aucune donnée dans l'application")
         r = subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], capture_output=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_image_disque_verifiee(self):
-        dmgs = list((ROOT / "dist").glob("JARVIS-*.dmg"))
+        dmgs = list((ROOT / "dist").glob("Nova-*.dmg"))
         self.assertTrue(dmgs)
         r = subprocess.run(["hdiutil", "verify", str(dmgs[0])], capture_output=True)
         self.assertEqual(r.returncode, 0, r.stderr)

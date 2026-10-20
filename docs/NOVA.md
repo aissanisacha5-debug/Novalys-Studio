@@ -74,3 +74,37 @@ Chaque tranche ajoute ses tests et met à jour ce document.
 - Le téléphone ne peut pas encore joindre le service (tranche 2).
 - La qualité de la voix dépend des voix installées sur l'appareil ; une voix neuronale côté serveur (API temps réel) demanderait une clé et un budget : à décider.
 - Le modèle se présente encore comme « JARVIS » (prompt système inchangé dans cette tranche).
+
+## 4. Interface de la vidéo de référence, en vert billet (2026-10-20)
+
+Reproduction de la vidéo envoyée par Sacha, seule la palette violette remplacée par le vert billet
+(`#00C878`, `#00E69A`, `#006B45`, `#06271D`, `#080B0A`, `#101713` ; jetons `--nova-*` dans `web/css/tokens.css`).
+
+- **Accueil** : brume verte plein écran, salutation discrète (« Bonjour Sacha » + date), petit noyau lumineux
+  (64 px) aux sept états, indication sous le noyau. Aucun texte de conversation.
+- **Cartes** : titre de section espacé + filet + méta à droite ; cartes horizontales translucides (avatar,
+  nom · contexte, résumé, badge Froid / Tiède / Chaud…). La carte active s'illumine et se développe (détail +
+  « Action recommandée »). Entrée en cascade, transitions de 0,5 s.
+- **Détail** : deux panneaux côte à côte (proposition lumineuse à gauche, e-mail et pièce jointe à droite),
+  question de validation en bas (« Espace ↵ »), puis écran « C'est fait » ; empilés sous 620 px.
+- **Données réelles uniquement** : rien n'est affiché par défaut. L'agent montre des éléments obtenus par ses
+  outils avec `nova_afficher` (source portée par chaque carte) et `nova_effacer` ; état servi par
+  `GET/DELETE /api/nova/view` et l'événement `nova_view`. Tout est rendu en `textContent` (aucun HTML venant
+  d'un e-mail).
+- **Validation réelle** : la question n'est active que si le moteur attend une confirmation pour la tâche qui a
+  affiché la vue. Valider (clic, Espace ou Entrée) approuve cette confirmation ; l'écran de succès n'apparaît
+  qu'une fois la tâche réellement terminée.
+- **Renommage** : textes visibles de l'interface et de l'app Mac en « Nova » (Nova.app, menus, messages,
+  mot d'activation par défaut « Nova », nouvelle icône). Identifiants internes conservés (`studio.novalys.jarvis`,
+  `~/Library/Application Support/JARVIS`, trousseau, agent de lancement) pour garder données, autorisations micro
+  et secrets existants. `python3 jarvis.py install` met de côté une ancienne `JARVIS.app`.
+
+### Vérification visuelle
+Banc reproductible : serveur isolé, provider scripté et données de **démonstration** (`tests/fixtures/nova_demo.json`,
+jamais chargées par l'application) ; la validation passe par une vraie confirmation du moteur. Captures
+1440×900 et 390×844 (accueil, liste, chaque carte active, détail, succès) comparées aux images de la vidéo.
+
+### Limites
+- L'app Mac n'a pas été recompilée ici (Linux) : à construire sur le Mac avec `python3 jarvis.py build`.
+- Les cartes n'apparaissent que si l'agent appelle `nova_afficher` ; la connexion Gmail et le briefing
+  (tranches 3 et 4) fourniront les vraies données des rendez-vous et e-mails.

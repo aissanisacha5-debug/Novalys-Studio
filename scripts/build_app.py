@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Construction reproductible de l'application macOS JARVIS :
+"""Construction reproductible de l'application macOS Nova :
 
-  dist/JARVIS.app        application native (Swift + WebKit) contenant le service Python et l'interface
-  dist/JARVIS-<v>.dmg    image disque d'installation (glisser JARVIS dans Applications)
+  dist/Nova.app          application native (Swift + WebKit) contenant le service Python et l'interface
+  dist/Nova-<v>.dmg      image disque d'installation (glisser Nova dans Applications)
 
 Étapes : compilation Swift (choix automatique d'un SDK compatible avec le compilateur), assemblage du
 paquet (.app), icône, Info.plist (micro, reconnaissance vocale, réseau local), signature ad hoc (pas de
@@ -26,7 +26,7 @@ from jarvis import VERSION  # noqa: E402
 
 DIST = ROOT / "dist"
 BUILD = ROOT / "build"
-APP = DIST / "JARVIS.app"
+APP = DIST / "Nova.app"
 SDK_DIR = Path("/Library/Developer/CommandLineTools/SDKs")
 FRAMEWORKS = ["Cocoa", "WebKit", "Speech", "AVFoundation"]
 
@@ -55,7 +55,7 @@ def compile_swift(out: Path) -> str:
 def make_icns(dest: Path) -> None:
     src = ROOT / "web" / "icone-1024.png"
     with tempfile.TemporaryDirectory() as td:
-        iconset = Path(td) / "JARVIS.iconset"
+        iconset = Path(td) / "Nova.iconset"
         iconset.mkdir()
         for s in (16, 32, 128, 256, 512):
             for scale, suffix in ((1, ""), (2, "@2x")):
@@ -81,14 +81,14 @@ def copy_code(dest: Path) -> int:
 
 def info_plist() -> dict:
     return {
-        "CFBundleName": "JARVIS", "CFBundleDisplayName": "JARVIS", "CFBundleIdentifier": "studio.novalys.jarvis",
-        "CFBundleExecutable": "JARVIS", "CFBundleIconFile": "JARVIS", "CFBundlePackageType": "APPL",
+        "CFBundleName": "Nova", "CFBundleDisplayName": "Nova", "CFBundleIdentifier": "studio.novalys.jarvis",  # identifiant conservé : données, micro et trousseau existants
+        "CFBundleExecutable": "Nova", "CFBundleIconFile": "Nova", "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": VERSION, "CFBundleVersion": time.strftime("%Y%m%d%H%M"),
         "LSMinimumSystemVersion": "13.0", "LSApplicationCategoryType": "public.app-category.productivity",
         "NSHighResolutionCapable": True, "NSPrincipalClass": "NSApplication",
-        "NSHumanReadableCopyright": "Novalys Studio — assistant personnel JARVIS",
-        "NSMicrophoneUsageDescription": "JARVIS utilise le micro uniquement quand vous activez la dictée, pour transcrire votre demande.",
-        "NSSpeechRecognitionUsageDescription": "JARVIS transcrit votre voix en texte (sur l'appareil quand c'est possible) ; aucun audio n'est conservé.",
+        "NSHumanReadableCopyright": "Novalys Studio — assistant personnel Nova",
+        "NSMicrophoneUsageDescription": "Nova utilise le micro uniquement quand vous activez la dictée, pour transcrire votre demande.",
+        "NSSpeechRecognitionUsageDescription": "Nova transcrit votre voix en texte (sur l'appareil quand c'est possible) ; aucun audio n'est conservé.",
         "NSAppTransportSecurity": {"NSAllowsLocalNetworking": True},
     }
 
@@ -99,11 +99,11 @@ def build_app() -> dict:
     (APP / "Contents" / "MacOS").mkdir(parents=True)
     (APP / "Contents" / "Resources").mkdir()
     BUILD.mkdir(exist_ok=True)
-    sdk = compile_swift(APP / "Contents" / "MacOS" / "JARVIS")
+    sdk = compile_swift(APP / "Contents" / "MacOS" / "Nova")
     with open(APP / "Contents" / "Info.plist", "wb") as f:
         plistlib.dump(info_plist(), f)
     (APP / "Contents" / "PkgInfo").write_text("APPL????")
-    make_icns(APP / "Contents" / "Resources" / "JARVIS.icns")
+    make_icns(APP / "Contents" / "Resources" / "Nova.icns")
     files = copy_code(APP / "Contents" / "Resources" / "app")
     code, log = run(["codesign", "--force", "--deep", "--sign", "-", str(APP)])
     if code:
@@ -115,21 +115,21 @@ def build_app() -> dict:
 
 
 def build_dmg() -> Path:
-    dmg = DIST / f"JARVIS-{VERSION}.dmg"
+    dmg = DIST / f"Nova-{VERSION}.dmg"
     if dmg.exists():
         dmg.unlink()
     with tempfile.TemporaryDirectory() as td:
-        stage = Path(td) / "JARVIS"
+        stage = Path(td) / "Nova"
         stage.mkdir()
-        shutil.copytree(APP, stage / "JARVIS.app", symlinks=True)
+        shutil.copytree(APP, stage / "Nova.app", symlinks=True)
         (stage / "Applications").symlink_to("/Applications")
         (stage / "LISEZMOI.txt").write_text(
-            f"JARVIS {VERSION}\n\nInstallation : glisser JARVIS dans le dossier Applications (ou ~/Applications), puis l'ouvrir.\n"
+            f"Nova {VERSION}\n\nInstallation : glisser Nova dans le dossier Applications (ou ~/Applications), puis l'ouvrir.\n"
             "Premier lancement : application signée ad hoc (sans certificat Apple Developer). Si macOS refuse de l'ouvrir :\n"
-            "clic droit sur JARVIS > Ouvrir > Ouvrir, ou Réglages Système > Confidentialité et sécurité > Ouvrir quand même.\n"
+            "clic droit sur Nova > Ouvrir > Ouvrir, ou Réglages Système > Confidentialité et sécurité > Ouvrir quand même.\n"
             "Prérequis : macOS 13+, Python 3 d'Apple (/usr/bin/python3, outils en ligne de commande). Fournisseur IA à choisir dans Modèles IA.\n",
             encoding="utf-8")
-        code, log = run(["hdiutil", "create", "-volname", f"JARVIS {VERSION}", "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(dmg)])
+        code, log = run(["hdiutil", "create", "-volname", f"Nova {VERSION}", "-srcfolder", str(stage), "-ov", "-format", "UDZO", str(dmg)])
         if code:
             raise SystemExit("Création du .dmg impossible : " + log)
     code, log = run(["hdiutil", "verify", str(dmg)])

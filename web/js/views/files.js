@@ -1,5 +1,5 @@
 // Fichiers : navigation dans les dossiers autorisés (via les outils, donc via les permissions), lecture,
-// création de dossier, renommage, copie, suppression (corbeille JARVIS, confirmation), doublons, archive.
+// création de dossier, renommage, copie, suppression (corbeille Nova, confirmation), doublons, archive.
 import { get, post } from "../api.js";
 import { btn, el, empty, errorBox, field, handleError, input, loading, modal, toast } from "../ui.js";
 
@@ -16,7 +16,7 @@ export async function render(view, params, app) {
     el("span", { class: "grow" }),
     btn("Nouveau dossier", () => { const n = input({ placeholder: "nom-du-dossier" }); modal("Nouveau dossier", field(`Dans ${cwd}`, n), ["close", (c) => btn("Créer", async () => { await tool("dossier_creer", { path: `${cwd}/${n.value}` }); c(); load(); }, { cls: "primary" })]); }, { cls: "sm", icon: "plus" }),
     btn("Doublons", async () => { const r = await tool("doublons_detecter", { root: cwd }); modal("Fichiers en double", r.groups.length ? el("div", { class: "list" }, ...r.groups.map((g) => el("div", { class: "row" }, el("span", { class: "faint xs" }, `${Math.round(g.size / 1024)} Ko`), el("div", { class: "main-col mono" }, g.files.join("\n")), el("span", {})))) : el("p", {}, "Aucun doublon."), ["close"], true); }, { cls: "sm ghost" })),
-    el("p", { class: "small muted" }, "Seuls les dossiers autorisés sont accessibles (Paramètres > Sécurité). Le dossier CYPHER est en lecture seule ; les suppressions vont dans la corbeille JARVIS et demandent votre accord."),
+    el("p", { class: "small muted" }, "Seuls les dossiers autorisés sont accessibles (Paramètres > Sécurité). Le dossier CYPHER est en lecture seule ; les suppressions vont dans la corbeille Nova et demandent votre accord."),
     body);
 
   async function load() {
@@ -25,7 +25,7 @@ export async function render(view, params, app) {
     try { r = await tool("dossier_lister", { path: cwd }); } catch (e) { return body.replaceChildren(errorBox(e)); }
     const parts = r.path.split("/").filter(Boolean);
     const crumbs = el("div", { class: "crumbs" }, ...parts.map((p, i) => [el("button", { type: "button", onclick: () => { cwd = "/" + parts.slice(0, i + 1).join("/"); load(); } }, p), "/"]));
-    if (!r.items.length) return body.replaceChildren(crumbs, empty("Dossier vide.", "Demandez à JARVIS d'y créer des fichiers."));
+    if (!r.items.length) return body.replaceChildren(crumbs, empty("Dossier vide.", "Demandez à Nova d'y créer des fichiers."));
     body.replaceChildren(crumbs, el("table", { class: "table" }, el("thead", {}, el("tr", {}, el("th", {}, "Nom"), el("th", {}, "Taille"), el("th", {}, "Modifié"), el("th", {}, ""))),
       el("tbody", {}, ...r.items.map((it) => {
         const full = `${r.path}/${it.name}`;

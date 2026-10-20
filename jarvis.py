@@ -13,8 +13,8 @@
   python3 jarvis.py deps       contrôle des prérequis système (aucune dépendance à installer)
   python3 jarvis.py dev        mode développement : données séparées (data-dev), port 8766, rechargement auto
   python3 jarvis.py demo       démonstration : données FICTIVES séparées (data-demo), port 8767
-  python3 jarvis.py build      check + compilation de dist/JARVIS.app et dist/JARVIS-<version>.dmg
-  python3 jarvis.py install    installe dist/JARVIS.app dans ~/Applications (l'ancienne version est conservée à part)
+  python3 jarvis.py build      check + compilation de dist/Nova.app et dist/Nova-<version>.dmg
+  python3 jarvis.py install    installe dist/Nova.app dans ~/Applications (l'ancienne version est conservée à part)
 """
 from __future__ import annotations
 
@@ -34,11 +34,12 @@ sys.path.insert(0, str(ROOT))
 from jarvis import VERSION, paths  # noqa: E402
 
 CHROME = "/Applications/Google Chrome.app"
-INSTALLED_APP = Path.home() / "Applications" / "JARVIS.app"
+INSTALLED_APP = Path.home() / "Applications" / "Nova.app"
+LEGACY_APP = Path.home() / "Applications" / "JARVIS.app"   # nom d'avant Nova (mêmes données, même identifiant)
 
 
 def installed_native_app() -> bool:
-    return (INSTALLED_APP / "Contents" / "Resources" / "app" / "jarvis.py").exists()
+    return any((a / "Contents" / "Resources" / "app" / "jarvis.py").exists() for a in (INSTALLED_APP, LEGACY_APP))
 
 
 def port() -> int:
@@ -282,18 +283,20 @@ def build() -> None:
 
 
 def install() -> None:
-    """Installe dist/JARVIS.app dans ~/Applications sans toucher aux données (elles sont dans Application Support)."""
+    """Installe dist/Nova.app dans ~/Applications sans toucher aux données (elles sont dans Application Support).
+    Une ancienne JARVIS.app est mise de côté comme les anciennes versions."""
     import shutil
-    src = ROOT / "dist" / "JARVIS.app"
+    src = ROOT / "dist" / "Nova.app"
     if not src.exists():
         print("Aucune application construite : lancer d'abord « python3 jarvis.py build ».")
         sys.exit(1)
     INSTALLED_APP.parent.mkdir(parents=True, exist_ok=True)
-    if INSTALLED_APP.exists():
-        keep = paths.SUPPORT_DIR / "anciennes-versions" / f"JARVIS-{time.strftime('%Y%m%d-%H%M%S')}.app"
-        keep.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(INSTALLED_APP), str(keep))
-        print(f"Ancienne version conservée : {keep}")
+    for old in (INSTALLED_APP, LEGACY_APP):
+        if old.exists():
+            keep = paths.SUPPORT_DIR / "anciennes-versions" / f"{old.stem}-{time.strftime('%Y%m%d-%H%M%S')}.app"
+            keep.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old), str(keep))
+            print(f"Ancienne version conservée : {keep}")
     shutil.copytree(str(src), str(INSTALLED_APP), symlinks=True)
     r = subprocess.run(["codesign", "--verify", "--deep", "--strict", str(INSTALLED_APP)], capture_output=True)
     print(f"Installé : {INSTALLED_APP} (signature {'valide' if r.returncode == 0 else 'INVALIDE'})")

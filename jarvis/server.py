@@ -41,6 +41,8 @@ class Api:
         self.routes: List[Route] = []
         r = self.add
         r("GET", r"/api/state", self.state)
+        r("GET", r"/api/nova/view", lambda q, b: {"view": self.app.nova_view})
+        r("DELETE", r"/api/nova/view", self.nova_clear)
         r("POST", r"/api/chat", self.chat)
         r("GET", r"/api/conversations", lambda q, b: self.app.conversations.list(q.get("archived") == "1",
                                                                                    _int(q.get("project")), q.get("q", "")))
@@ -162,6 +164,11 @@ class Api:
             "settings": {"appearance": app.settings.get("appearance"), "voice": app.settings.get("voice"),
                          "assistant": app.settings.get("assistant"), "shortcuts": app.settings.get("shortcuts")},
         }
+
+    def nova_clear(self, q, b):
+        self.app.nova_view = None
+        self.app.bus.publish({"type": "nova_view", "task_id": None, "view": None})
+        return {"cleared": True}
 
     def chat(self, q, b):
         cts = b.get("client_ts")

@@ -11,10 +11,10 @@ export async function render(view, params, app) {
     out.replaceChildren(loading("Recherche…"));
     let r; try { r = await get(`/api/search?q=${encodeURIComponent(q.value)}`); } catch (e) { return out.replaceChildren(errorBox(e)); }
     const total = Object.values(r).reduce((n, a) => n + a.length, 0);
-    if (!total) return out.replaceChildren(empty("Aucun résultat.", "Essayez un autre mot, ou demandez à JARVIS de chercher sur le web."));
+    if (!total) return out.replaceChildren(empty("Aucun résultat.", "Essayez un autre mot, ou demandez à Nova de chercher sur le web."));
     out.replaceChildren(
       ...sec("Mémoire", r.memory, (m) => el("div", { class: "row click", onclick: () => app.go("#/memoire") }, el("span", { class: "badge plain" }, m.type), el("div", { class: "main-col" }, el("div", { class: "small" }, m.content), el("div", { class: "d xs" }, `source : ${m.source}${m.project_name ? " – projet " + m.project_name : ""}`)), status(m.status))),
-      ...sec("Conversations", r.messages, (m) => el("div", { class: "row click", onclick: () => app.go(`#/conversation/${m.conversation_id}`) }, el("span", { class: "faint xs" }, m.role === "user" ? "Sacha" : "JARVIS"), el("div", { class: "main-col" }, el("div", { class: "t small" }, m.title), el("div", { class: "d small" }, m.snippet)), el("span", { class: "faint xs" }, when(m.created_at)))),
+      ...sec("Conversations", r.messages, (m) => el("div", { class: "row click", onclick: () => app.go(`#/conversation/${m.conversation_id}`) }, el("span", { class: "faint xs" }, m.role === "user" ? "Sacha" : "Nova"), el("div", { class: "main-col" }, el("div", { class: "t small" }, m.title), el("div", { class: "d small" }, m.snippet)), el("span", { class: "faint xs" }, when(m.created_at)))),
       ...sec("Tâches", r.tasks, (t) => el("div", { class: "row click", onclick: () => app.go(`#/taches/${t.id}`) }, status(t.status), el("div", { class: "main-col small" }, t.title), el("span", {}))),
       ...sec("Projets", r.projects, (p) => el("div", { class: "row click", onclick: () => app.go(`#/projets/${p.id}`) }, status(p.status), el("div", { class: "main-col small" }, p.name), el("span", {}))),
       ...sec("Fichiers de l'espace de travail", r.files, (f) => el("div", { class: "row" }, el("span", { class: "faint xs" }, `l. ${f.line}`), el("div", { class: "main-col" }, el("div", { class: "d xs mono" }, f.file), el("div", { class: "small" }, f.text)), el("span", {}))),

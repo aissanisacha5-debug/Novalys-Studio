@@ -1,4 +1,4 @@
-// Diagnostic : contrôles de santé réels, système (processeur, mémoire, disque), processus JARVIS, durées, sauvegardes, coûts.
+// Diagnostic : contrôles de santé réels, système (processeur, mémoire, disque), processus Nova, durées, sauvegardes, coûts.
 import { get, post } from "../api.js";
 import { btn, download, el, errorBox, loading, status, toast } from "../ui.js";
 
@@ -14,12 +14,12 @@ export async function render(view, params, app) {
     page.replaceChildren(
       el("div", { class: "toolbar" }, el("h2", { class: "title", style: { margin: 0 } }, d.summary), el("span", { class: "grow" }), btn("Relancer", load, { icon: "refresh" }),
         btn("Copier le rapport", async () => { const r = await get("/api/diagnostics/report"); try { await navigator.clipboard.writeText(r.markdown); toast("Rapport copié (sans données confidentielles)."); } catch { download("diagnostic-jarvis.md", r.markdown); toast("Rapport téléchargé."); } }, { icon: "doc" }),
-        btn("Arrêter JARVIS", async () => { await post("/api/shutdown"); document.body.replaceChildren(el("div", { class: "empty-state", style: { marginTop: "30vh" } }, el("b", {}, "JARVIS est arrêté proprement."), "Relancez-le avec l'application JARVIS.")); }, { cls: "danger" })),
+        btn("Arrêter Nova", async () => { await post("/api/shutdown"); document.body.replaceChildren(el("div", { class: "empty-state", style: { marginTop: "30vh" } }, el("b", {}, "Nova est arrêté proprement."), "Relancez-le avec l'application Nova.")); }, { cls: "danger" })),
       el("div", { class: "metrics" },
         sys.cpu ? m(`${sys.cpu.percent} %`, `charge processeur (${sys.cpu.cores} cœurs)`, sys.cpu.percent) : null,
         sys.memory ? m(`${sys.memory.used_gb} / ${sys.memory.total_gb} Go`, "mémoire utilisée", sys.memory.percent) : null,
         m(`${sys.disk.free_gb} Go`, `libres sur ${sys.disk.total_gb} Go`, sys.disk.percent),
-        m(sys.tasks_running.length, "tâches JARVIS en cours")),
+        m(sys.tasks_running.length, "tâches Nova en cours")),
       el("table", { class: "table" }, el("tbody", {}, ...d.checks.map((c) => el("tr", {}, el("td", {}, el("span", { class: "badge " + (c.ok ? "ok" : c.niveau === "info" ? "plain" : c.niveau === "attention" ? "wait" : "err") }, c.ok ? "OK" : c.niveau === "info" ? "info" : c.niveau === "attention" ? "à voir" : "erreur")),
         el("td", {}, c.composant), el("td", { class: "small muted" }, c.detail))))),
       el("div", { class: "grid-2" },
@@ -37,7 +37,7 @@ export async function render(view, params, app) {
               btn("Restaurer", async () => { await post("/api/backups/restore", { name: b.name }); }, { cls: "sm ghost" })))))
             : el("p", { class: "faint small" }, "Aucune sauvegarde."))),
       el("h3", {}, "Versions"), el("dl", { class: "kv" }, ...Object.entries(d.versions || {}).flatMap(([k, v]) => [el("dt", {}, k), el("dd", { class: "mono" }, v)])),
-      el("h3", {}, "Processus démarrés par JARVIS"),
+      el("h3", {}, "Processus démarrés par Nova"),
       sys.processes.length ? el("table", { class: "table" }, el("tbody", {}, ...sys.processes.map((p) => el("tr", {}, el("td", { class: "mono" }, p.pid), el("td", {}, p.kind), el("td", { class: "small" }, p.command),
         el("td", { class: "small faint" }, p.port ? `http://127.0.0.1:${p.port}/` : ""), el("td", {}, p.stopped_at ? el("span", { class: "badge plain" }, "arrêté") : el("span", { class: "badge ok" }, "actif")),
         el("td", {}, p.stopped_at ? null : btn("Arrêter", async () => { await post("/api/tools/processus_arreter/invoke", { args: { process_id: p.id } }); load(); }, { cls: "sm ghost" }))))))

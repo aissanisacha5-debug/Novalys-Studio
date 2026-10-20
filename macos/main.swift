@@ -1,6 +1,6 @@
-// JARVIS — application macOS native (AppKit + WebKit).
+// Nova — application macOS native (AppKit + WebKit).
 //
-// Rôle : fenêtre autonome qui affiche l'interface Obsidian Emerald servie par le service local JARVIS
+// Rôle : fenêtre autonome qui affiche l'interface Obsidian Emerald servie par le service local Nova
 // (127.0.0.1), démarre ce service s'il ne tourne pas, l'arrête proprement en quittant (sauf si le
 // démarrage automatique en arrière-plan est activé), fournit la dictée vocale native (Speech, sur
 // l'appareil si possible), les téléchargements, les liens externes et les menus standard.
@@ -69,15 +69,15 @@ final class Service {
         env["JARVIS_APP"] = "1"
         p.environment = env
         if let h = try? FileHandle(forWritingTo: log) { h.seekToEndOfFile(); p.standardOutput = h; p.standardError = h }
-        do { try p.run() } catch { return "Impossible de lancer le service JARVIS (\(python())) : \(error.localizedDescription)" }
+        do { try p.run() } catch { return "Impossible de lancer le service Nova (\(python())) : \(error.localizedDescription)" }
         process = p
         startedByApp = true
         for _ in 0..<80 {
             if healthy(timeout: 0.5) { return nil }
-            if !p.isRunning { return "Le service JARVIS s'est arrêté au démarrage. Journal : \(log.path)" }
+            if !p.isRunning { return "Le service Nova s'est arrêté au démarrage. Journal : \(log.path)" }
             Thread.sleep(forTimeInterval: 0.25)
         }
-        return "Le service JARVIS ne répond pas. Journal : \(log.path)"
+        return "Le service Nova ne répond pas. Journal : \(log.path)"
     }
 
     func token() -> String? {
@@ -134,12 +134,12 @@ final class NativeVoice: NSObject {
     private func authorize(_ then: @escaping () -> Void) {
         SFSpeechRecognizer.requestAuthorization { status in
             guard status == .authorized else {
-                self.send(["type": "error", "error": "not-allowed", "message": "Reconnaissance vocale non autorisée : Réglages Système > Confidentialité et sécurité > Reconnaissance vocale > JARVIS."])
+                self.send(["type": "error", "error": "not-allowed", "message": "Reconnaissance vocale non autorisée : Réglages Système > Confidentialité et sécurité > Reconnaissance vocale > Nova."])
                 return
             }
             AVCaptureDevice.requestAccess(for: .audio) { granted in
                 guard granted else {
-                    self.send(["type": "error", "error": "not-allowed", "message": "Micro non autorisé : Réglages Système > Confidentialité et sécurité > Microphone > JARVIS."])
+                    self.send(["type": "error", "error": "not-allowed", "message": "Micro non autorisé : Réglages Système > Confidentialité et sécurité > Microphone > Nova."])
                     return
                 }
                 DispatchQueue.main.async { then() }
@@ -166,7 +166,7 @@ final class NativeVoice: NSObject {
         authorize {
             guard let rec = self.recognizer, rec.supportsOnDeviceRecognition else {
                 self.send(["type": "error", "error": "wake-unavailable",
-                           "message": "Mot d'activation indisponible : ce Mac ne peut pas reconnaître le français sur l'appareil, et JARVIS n'envoie pas d'écoute continue sur Internet. Utilisez le bouton micro ou le raccourci Alt+Espace."])
+                           "message": "Mot d'activation indisponible : ce Mac ne peut pas reconnaître le français sur l'appareil, et Nova n'envoie pas d'écoute continue sur Internet. Utilisez le bouton micro ou le raccourci Alt+Espace."])
                 return
             }
             self.wakeEnabled = true
@@ -328,13 +328,13 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
                   ["http", "https"].contains(u.scheme ?? "") {
             NSWorkspace.shared.open(u)
         } else if message.name == "jarvisApp", cmd == "pickFolder" {
-            // Sélecteur de dossiers macOS : le choix explicite de Sacha ; le chemin est ensuite soumis à confirmation dans JARVIS.
+            // Sélecteur de dossiers macOS : le choix explicite de Sacha ; le chemin est ensuite soumis à confirmation dans Nova.
             let panel = NSOpenPanel()
             panel.canChooseDirectories = true
             panel.canChooseFiles = false
             panel.allowsMultipleSelection = false
             panel.prompt = "Autoriser ce dossier"
-            panel.message = "Choisissez le dossier auquel JARVIS pourra accéder."
+            panel.message = "Choisissez le dossier auquel Nova pourra accéder."
             panel.begin { resp in
                 let path = resp == .OK ? panel.url?.path : nil
                 let js = path.map { p -> String in
@@ -346,7 +346,7 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         }
     }
 
-    // Seules les pages locales de JARVIS s'affichent dans la fenêtre ; tout autre lien s'ouvre dans le navigateur par défaut.
+    // Seules les pages locales de Nova s'affichent dans la fenêtre ; tout autre lien s'ouvre dans le navigateur par défaut.
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         if action.shouldPerformDownload { decisionHandler(.download); return }
         guard let url = action.request.url else { decisionHandler(.cancel); return }
@@ -394,8 +394,8 @@ final class WebController: NSObject, WKNavigationDelegate, WKUIDelegate, WKScrip
         <html><body style="background:#080A0B;color:#E9F0EE;font:15px -apple-system;display:grid;place-items:center;height:100vh;margin:0">
         <div style="text-align:center;max-width:460px"><div style="width:64px;height:64px;margin:0 auto 18px;border-radius:50%;
         background:radial-gradient(circle,#38F5B3 0 20%,#00D6A0 35%,#075B48 65%,transparent 67%)"></div>
-        <h2 style="font-weight:500">Le service JARVIS ne répond pas</h2><p style="color:#929D99">\(why)</p>
-        <p style="color:#929D99">Menu JARVIS &gt; Redémarrer le service, ou consultez le journal (Aide &gt; Ouvrir le journal).</p></div></body></html>
+        <h2 style="font-weight:500">Le service Nova ne répond pas</h2><p style="color:#929D99">\(why)</p>
+        <p style="color:#929D99">Menu Nova &gt; Redémarrer le service, ou consultez le journal (Aide &gt; Ouvrir le journal).</p></div></body></html>
         """
         web.loadHTMLString(html, baseURL: nil)
     }
@@ -410,7 +410,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         buildMenu()
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1440, height: 900),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-        window.title = "JARVIS"
+        window.title = "Nova"
         window.titlebarAppearsTransparent = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = NSColor(red: 8 / 255, green: 10 / 255, blue: 11 / 255, alpha: 1)
@@ -468,15 +468,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         func item(_ title: String, _ action: Selector?, _ key: String = "", _ mods: NSEvent.ModifierFlags = .command) -> NSMenuItem {
             let i = NSMenuItem(title: title, action: action, keyEquivalent: key); i.keyEquivalentModifierMask = mods; return i
         }
-        let app = NSMenu(title: "JARVIS")
-        app.addItem(item("À propos de JARVIS", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
+        let app = NSMenu(title: "Nova")
+        app.addItem(item("À propos de Nova", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
         app.addItem(.separator())
         app.addItem(item("Paramètres…", #selector(goSettings), ","))
         app.addItem(item("Diagnostic", #selector(goDiagnostic), "d", [.command, .shift]))
         app.addItem(item("Redémarrer le service", #selector(restartService)))
         app.addItem(.separator())
-        app.addItem(item("Masquer JARVIS", #selector(NSApplication.hide(_:)), "h"))
-        app.addItem(item("Quitter JARVIS", #selector(NSApplication.terminate(_:)), "q"))
+        app.addItem(item("Masquer Nova", #selector(NSApplication.hide(_:)), "h"))
+        app.addItem(item("Quitter Nova", #selector(NSApplication.terminate(_:)), "q"))
         let edit = NSMenu(title: "Édition")
         edit.addItem(item("Annuler", Selector(("undo:")), "z"))
         edit.addItem(item("Rétablir", Selector(("redo:")), "z", [.command, .shift]))

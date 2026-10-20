@@ -1,4 +1,4 @@
-// Accueil : noyau JARVIS (état réel), saisie, raccourcis, tâches en cours, derniers résultats, alertes.
+// Accueil : noyau Nova (état réel), saisie, raccourcis, tâches en cours, derniers résultats, alertes.
 import { get, post } from "../api.js";
 import { el, handleError, status, when } from "../ui.js";
 import { Core } from "../core.js";

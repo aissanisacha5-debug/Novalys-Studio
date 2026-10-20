@@ -27,7 +27,7 @@ export async function render(view, params, app) {
       plugins.length ? el("div", { class: "list" }, ...plugins.map((p) => el("div", { class: "row" }, el("span", { class: "badge " + (p.loaded ? "ok" : "plain") }, p.enabled ? (p.loaded ? "chargé" : "erreur") : "désactivé"), el("div", { class: "main-col small" }, `${p.name} ${p.version} — outils : ${p.tools.join(", ")}`, p.error ? el("div", { class: "xs", style: { color: "var(--err)" } }, p.error) : null), el("span", {}))))
         : el("p", { class: "small faint" }, "Aucun plugin installé. Un plugin (dossier plugins/<nom>) déclare ses outils et son risque maximal ; il est désactivé par défaut et n'obtient aucun droit implicite."),
       el("h3", {}, `Applications du Mac (${apps.length})`),
-      el("p", { class: "small muted" }, "JARVIS peut ouvrir une application installée (outil application_ouvrir, vérification par détection du processus). Le contrôle de l'interface d'autres applications (accessibilité, AppleScript) n'est pas activé : aucune autorisation d'accessibilité n'a été accordée."),
+      el("p", { class: "small muted" }, "Nova peut ouvrir une application installée (outil application_ouvrir, vérification par détection du processus). Le contrôle de l'interface d'autres applications (accessibilité, AppleScript) n'est pas activé : aucune autorisation d'accessibilité n'a été accordée."),
       el("div", { class: "shortcuts", style: { justifyContent: "flex-start" } }, ...apps.slice(0, 60).map((a) => el("button", { type: "button", onclick: async () => {
         try { const r = await post("/api/tools/application_ouvrir/invoke", { args: { name: a } }); toast(`${a} : ${r.verification}`); } catch (e) { handleError(e); }
       } }, a))));

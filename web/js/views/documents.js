@@ -1,4 +1,4 @@
-// Documents : créer un document (md, txt, html, docx, pdf, csv, xlsx, json), rapports existants, rédaction par JARVIS.
+// Documents : créer un document (md, txt, html, docx, pdf, csv, xlsx, json), rapports existants, rédaction par Nova.
 import { post } from "../api.js";
 import { btn, el, field, input, loading, select, textarea, toast } from "../ui.js";
 import { quickAsk } from "../app.js";
@@ -23,8 +23,8 @@ export async function render(view, params, app) {
               " ", btn("Ouvrir", () => tool("fichier_ouvrir", { path: r.result.path }), { cls: "sm" })));
             toast("Document créé."); loadList();
           }, { cls: "primary" })), result)),
-      el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Faire rédiger par JARVIS"),
-        el("p", { class: "small muted" }, "Décrivez le document : JARVIS le rédige, le crée au bon format et vérifie le fichier."),
+      el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Faire rédiger par Nova"),
+        el("p", { class: "small muted" }, "Décrivez le document : Nova le rédige, le crée au bon format et vérifie le fichier."),
         ...[["Proposition commerciale", "Rédige une proposition commerciale pour un site vitrine (structure type, sans prix inventés : laisse les prix à compléter), au format docx dans workspace/documents."],
           ["Compte rendu de réunion", "Prépare un modèle de compte rendu de réunion client en Markdown dans workspace/documents."],
           ["Documentation technique", "Rédige la documentation technique du dernier site créé dans workspace/sites (structure, pages, déploiement)."]]

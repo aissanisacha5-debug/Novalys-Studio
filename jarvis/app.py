@@ -23,7 +23,7 @@ from .providers.others import AnthropicAPIProvider, OllamaProvider, OpenAICompat
 from .scheduler import Scheduler
 from .services import Notifier, Secrets, Voice
 from .tasks import TaskManager
-from .tools import browser, data_tools, documents, files, shell, sites, web
+from .tools import browser, data_tools, documents, files, nova, shell, sites, web
 from .tools.registry import ToolRegistry
 
 _CURRENT: Optional["JarvisApp"] = None
@@ -61,7 +61,8 @@ class JarvisApp:
         for p in (ClaudeCodeProvider(self), OllamaProvider(self), AnthropicAPIProvider(self), OpenAICompatibleProvider(self)):
             self.providers.register(p)
         self.tools = ToolRegistry(self)
-        for mod in (files, shell, web, browser, sites, documents, data_tools):
+        self.nova_view = None                     # dernière vue affichée par Nova (cartes / détail), rechargée par l'accueil
+        for mod in (files, shell, web, browser, sites, documents, data_tools, nova):
             mod.register(self.tools)
         self.plugins = self._load_plugins()
         self.tasks = TaskManager(self)

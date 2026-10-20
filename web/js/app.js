@@ -1,4 +1,4 @@
-// JARVIS — interface principale : navigation, rail d'activité, état du noyau, voix, raccourcis.
+// Nova — interface principale : navigation, rail d'activité, état du noyau, voix, raccourcis.
 import { get, patch, post, stream } from "./api.js";
 import { $, btn, clear, confirmCard, el, handleError, hhmm, icon, status, toast } from "./ui.js";
 import { Core } from "./core.js";
@@ -29,7 +29,7 @@ export const app = {
   setCore(state, transient = false) {
     for (const c of [this.core, this.mini]) c?.set(state);
     const lab = { attente: "Prêt", ecoute: "Écoute active", transcription: "Transcription en cours", reflexion: "Réflexion", outil: "Utilise un outil",
-      tache: "Tâche en cours", parle: "JARVIS parle", autorisation: "Attend votre accord", erreur: "Erreur", termine: "Terminé",
+      tache: "Tâche en cours", parle: "Nova parle", autorisation: "Attend votre accord", erreur: "Erreur", termine: "Terminé",
       hors_ligne: "Service indisponible" }[state];
     const b = $("#core-badge"); b.textContent = lab;
     b.className = "badge " + ({ autorisation: "wait", erreur: "err", hors_ligne: "err", attente: "plain", termine: "plain" }[state] || "ok");

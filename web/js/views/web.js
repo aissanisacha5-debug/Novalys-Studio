@@ -23,8 +23,8 @@ export async function render(view, params, app) {
             btn("Fermer le navigateur piloté", async () => { await tool("navigateur_fermer", {}); toast("Navigateur piloté fermé."); }, { cls: "sm ghost" })),
           p.fields.length ? [el("h3", {}, `Champs de formulaire (${p.fields.length})`),
             el("table", { class: "table" }, el("tbody", {}, ...p.fields.map((f) => el("tr", {}, el("td", { class: "mono" }, f.selector || "—"), el("td", { class: "small" }, f.label), el("td", { class: "small faint" }, f.type),
-              el("td", {}, f.sensible ? el("span", { class: "badge err" }, "sensible : jamais rempli par JARVIS") : null))))),
-            el("p", { class: "small faint" }, "Demandez à JARVIS de remplir ces champs : il les remplit et vérifie les valeurs ; l'envoi du formulaire demande toujours votre accord.")] : null,
+              el("td", {}, f.sensible ? el("span", { class: "badge err" }, "sensible : jamais rempli par Nova") : null))))),
+            el("p", { class: "small faint" }, "Demandez à Nova de remplir ces champs : il les remplit et vérifie les valeurs ; l'envoi du formulaire demande toujours votre accord.")] : null,
           el("pre", { class: "out" }, p.content.replace(/<<<.*?>>>/g, "").trim())));
       } else if (/^https?:\/\//.test(v)) {
         const r = await tool("web_lire_page", { url: v, max_chars: 20000 });
@@ -34,7 +34,7 @@ export async function render(view, params, app) {
           el("h3", {}, p.title || p.url), el("p", { class: "small muted" }, p.description),
           el("div", { style: { display: "flex", gap: "8px", margin: "8px 0" } },
             btn("Auditer ce site", () => audit(v), { cls: "sm" }), btn("Vérifier les liens", () => links(v), { cls: "sm" }),
-            btn("Résumer avec JARVIS", () => quickAsk(`Lis ${v} et résume l'essentiel, en séparant les faits vérifiés des hypothèses, avec la source.`), { cls: "sm primary" }),
+            btn("Résumer avec Nova", () => quickAsk(`Lis ${v} et résume l'essentiel, en séparant les faits vérifiés des hypothèses, avec la source.`), { cls: "sm primary" }),
             el("a", { class: "btn sm ghost", href: p.url, target: "_blank", rel: "noopener noreferrer" }, "Ouvrir dans le navigateur")),
           el("pre", { class: "out" }, p.content.replace(/<<<.*?>>>/g, "").trim())));
       } else {

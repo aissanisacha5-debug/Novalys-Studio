@@ -49,7 +49,7 @@ async function detail(view, id, app) {
       el("div", { class: "crumbs" }, el("a", { href: "#/projets" }, "Projets"), "/", p.name),
       el("div", { class: "toolbar" }, el("h2", { class: "title", style: { margin: 0 } }, p.name), el("span", { class: "grow" }), el("div", { style: { width: "150px" } }, statusSel),
         btn("Compte rendu", async () => { const r = await get(`/api/projects/${id}/report`); modal("Compte rendu", md(r.markdown), ["close", (c) => btn("Télécharger", () => download(`compte-rendu-${id}.md`, r.markdown), { icon: "download" })], true); }, { icon: "doc" }),
-        btn("Demander à JARVIS", () => quickAsk(`Pour le projet « ${p.name} » : fais le point, détecte les tâches bloquées et propose les 3 prochaines priorités.`), { cls: "primary", icon: "chat" })),
+        btn("Demander à Nova", () => quickAsk(`Pour le projet « ${p.name} » : fais le point, détecte les tâches bloquées et propose les 3 prochaines priorités.`), { cls: "primary", icon: "chat" })),
       el("p", { class: "lead" }, p.description || ""),
       el("div", { class: "grid-2" }, sec("Objectifs", "objectives"), sec("Critères de réussite", "success_criteria"), sec("Prochaines étapes", "next_steps"), sec("Notes", "notes")),
       el("h3", {}, `Tâches (${p.tasks.length})`),

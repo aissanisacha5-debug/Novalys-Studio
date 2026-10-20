@@ -6,6 +6,7 @@ import { NovaSession, MESSAGES } from "../../web/js/nova/session.js";
 import { deriveState, NOVA_STATES, CORE_STATE } from "../../web/js/nova/states.js";
 import { BrowserSpeaker, pickVoice } from "../../web/js/nova/speaker.js";
 import { isEcho } from "../../web/js/echo.js";
+import { avatarIndex, resolveKind, pendingFor } from "../../web/js/nova/board.js";
 
 function fakeClock() {
   let t = 1_000_000, id = 0; const timers = new Map();
@@ -238,4 +239,24 @@ test("phrase en file : pas de retour au repos avant le premier son ; synthèse m
   assert.equal(s.state, "erreur");
   clock.advance(3500);
   assert.ok(calls.listen >= 2); assert.equal(s.state, "ecoute");
+});
+
+test("tableau : teinte d'avatar stable, vue résolue, validation liée à la vraie confirmation de la tâche", () => {
+  assert.equal(avatarIndex("Sonia"), avatarIndex("Sonia"));
+  for (const n of ["", "Lucas", "Élodie", null]) assert.ok(avatarIndex(n) >= 1 && avatarIndex(n) <= 4);
+
+  const list = { vue: "liste", elements: [] }; const withDetail = { ...list, detail: { validation: { question: "?" } } };
+  assert.equal(resolveKind(null, false), "accueil");
+  assert.equal(resolveKind(list, true), "liste");           // pas de détail : on reste sur la liste
+  assert.equal(resolveKind(withDetail, false), "liste");
+  assert.equal(resolveKind(withDetail, true), "detail");   // ouvert localement depuis la carte
+  assert.equal(resolveKind({ ...withDetail, vue: "detail" }, false), "detail");
+  assert.equal(resolveKind({ vue: "succes" }, false), "succes");
+
+  const view = { ...withDetail, vue: "detail", task_id: 12 };
+  const confs = [{ id: 1, task_id: 11, status: "en_attente" }, { id: 2, task_id: 12, status: "en_attente" }];
+  assert.equal(pendingFor(view, confs).id, 2);
+  assert.equal(pendingFor(view, [{ id: 3, task_id: 12, status: "accordee" }]), null);
+  assert.equal(pendingFor({ ...view, task_id: null }, [{ id: 4, task_id: null, status: "en_attente" }]), null);
+  assert.equal(pendingFor({ ...view, detail: {} }, confs), null);   // pas de question : rien à valider
 });

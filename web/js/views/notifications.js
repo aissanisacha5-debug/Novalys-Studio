@@ -24,7 +24,7 @@ export async function render(view, params, app) {
     const start = input({ value: s.quiet_hours.start }), end = input({ value: s.quiet_hours.end });
     prefs.replaceChildren(el("div", { class: "form" },
       toggle("Notifications activées", s.enabled, (v) => save({ enabled: v })),
-      toggle("Notifications macOS (en plus du centre JARVIS)", s.macos, (v) => save({ macos: v })),
+      toggle("Notifications macOS (en plus du centre Nova)", s.macos, (v) => save({ macos: v })),
       toggle("Masquer le contenu (écran verrouillé)", s.hide_content, (v) => save({ hide_content: v })),
       toggle("Heures silencieuses", s.quiet_hours.enabled, (v) => save({ quiet_hours: { enabled: v } })),
       el("div", { class: "form-row" }, field("Début", start), field("Fin", end)),

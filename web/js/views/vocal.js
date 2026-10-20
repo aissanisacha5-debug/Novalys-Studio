@@ -21,7 +21,7 @@ export async function render(view, params, app) {
       app.voice.awaitingReply = true;
       const r = await post("/api/chat", { text, conversation_id: convId, source: "voix", client_ts: Date.now() });
       convId = r.conversation_id; app.currentConv = convId; app.voice.lastTaskId = r.task_id; draft.value = "";
-      live.textContent = "Demande envoyée : JARVIS réfléchit…";
+      live.textContent = "Demande envoyée : Nova réfléchit…";
     } catch (e) { app.voice.awaitingReply = false; handleError(e); }
   };
   draft.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendDraft(); } });
@@ -41,7 +41,7 @@ export async function render(view, params, app) {
     el("div", { style: { display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap" } }, mic,
       btn("Arrêter la lecture", () => app.voice.stopSpeaking(), { cls: "ghost", icon: "stop" }),
       btn("Tout interrompre", async () => { app.voice.stopListening(); await app.voice.stopSpeaking(); for (const id of app.state?.core?.running || []) await post(`/api/tasks/${id}/cancel`).catch(() => {}); }, { cls: "danger" })),
-    !app.voice.supported ? el("p", { class: "error-box", style: { marginTop: "16px" } }, "La dictée n'est pas disponible ici. Ouvrez JARVIS avec son application ; le texte reste toujours disponible.") : null,
+    !app.voice.supported ? el("p", { class: "error-box", style: { marginTop: "16px" } }, "La dictée n'est pas disponible ici. Ouvrez Nova avec son application ; le texte reste toujours disponible.") : null,
     el("div", { style: { marginTop: "18px", textAlign: "left" } }, draft,
       el("div", { style: { display: "flex", gap: "8px", marginTop: "8px", justifyContent: "flex-end" } },
         btn("Effacer", () => { draft.value = ""; }, { cls: "ghost sm" }), btn("Envoyer", sendDraft, { cls: "primary sm", icon: "send" }))),
@@ -52,19 +52,19 @@ export async function render(view, params, app) {
         toggle("Envoyer la transcription automatiquement (sinon : vous la relisez avant)", s.auto_send, (x) => save({ auto_send: x }, x ? "Envoi automatique activé." : "La transcription sera à valider.")),
         toggle("Mains libres : après chaque réponse lue, le micro se rouvre (dites « stop » pour arrêter)", s.hands_free, (x, i) => {
           if (x && !app.voice.supported) { i.checked = false; return toast("Dictée indisponible ici.", "err"); }
-          save(x ? { hands_free: true, auto_speak: true } : { hands_free: false }, x ? "Mains libres activé : JARVIS lit ses réponses et réécoute ensuite." : "Mains libres désactivé.");
+          save(x ? { hands_free: true, auto_speak: true } : { hands_free: false }, x ? "Mains libres activé : Nova lit ses réponses et réécoute ensuite." : "Mains libres désactivé.");
           if (x && !app.voice.listening) app.voice.startListening();
         }),
-        toggle("Mot d'activation « Jarvis » (écoute continue, reconnaissance sur ce Mac uniquement)", s.wake_word?.enabled, (x, i) => {
-          if (x && !app.voice.wakeSupported) { i.checked = false; return toast("Mot d'activation disponible uniquement dans l'application JARVIS.", "err"); }
+        toggle(`Mot d'activation « ${s.wake_word?.phrase || "Nova"} » (écoute continue, reconnaissance sur ce Mac uniquement)`, s.wake_word?.enabled, (x, i) => {
+          if (x && !app.voice.wakeSupported) { i.checked = false; return toast("Mot d'activation disponible uniquement dans l'application Nova.", "err"); }
           save({ wake_word: { enabled: x } }, x ? "Mot d'activation activé : un bandeau doré l'indique en permanence." : "Mot d'activation désactivé.");
         }),
         toggle("Lire les réponses à voix haute", s.auto_speak, (x) => save({ auto_speak: x }))),
       el("p", { class: "small muted", style: { marginTop: "10px" } },
-        "Le mot d'activation n'écoute que si vous l'activez, uniquement avec la reconnaissance vocale de macOS sur l'appareil (aucun son n'est envoyé ; si votre Mac ne le permet pas, JARVIS le dit et le désactive). ",
+        "Le mot d'activation n'écoute que si vous l'activez, uniquement avec la reconnaissance vocale de macOS sur l'appareil (aucun son n'est envoyé ; si votre Mac ne le permet pas, Nova le dit et le désactive). ",
         "« Couper le micro » dans le bandeau arrête toute écoute. Un bandeau reste visible tant que le micro écoute.")),
     el("div", { class: "panel", style: { textAlign: "left", marginTop: "16px" } },
-      el("h3", { style: { marginTop: 0 } }, "Voix de JARVIS"),
+      el("h3", { style: { marginTop: 0 } }, "Voix de Nova"),
       el("div", { class: "form-row" }, field("Voix", vsel), field("Volume", vol), field("Vitesse", rate)),
       el("div", { style: { marginTop: "10px" } }, btn("Tester la voix", () => app.voice.speak("Bonjour Sacha, je suis prêt."), { cls: "sm", icon: "speaker" }))),
     el("div", { class: "panel", style: { textAlign: "left", marginTop: "16px" } },
@@ -72,7 +72,7 @@ export async function render(view, params, app) {
       el("p", { class: "small muted" },
         app.voice.engine === "macOS (Speech)" ? "Dictée : reconnaissance vocale de macOS, sur l'appareil quand le Mac le permet (sinon via Apple pour la dictée par bouton ; jamais pour le mot d'activation). "
           : app.voice.engine === "navigateur" ? "Dictée : moteur du navigateur (Chrome envoie l'audio à Google). " : "Dictée indisponible ici. ",
-        "Voix : synthèse macOS locale. JARVIS ne conserve aucun audio. ",
+        "Voix : synthèse macOS locale. Nova ne conserve aucun audio. ",
         `Le texte de vos demandes est envoyé au fournisseur IA actif : ${p ? `${p.label}${p.models?.length ? "" : ""}` : "aucun"}${p && !p.available ? " (indisponible)" : ""}.`))));
 
   app.core = new Core(canvas); app.syncCore();

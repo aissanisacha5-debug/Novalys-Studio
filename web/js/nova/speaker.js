@@ -1,6 +1,6 @@
 // Voix de Nova.
 // - BrowserSpeaker : synthèse de l'appareil (téléphone, navigateur de bureau), phrase par phrase, interruptible.
-// - MacSpeaker : dans l'application macOS, la voix du Mac lit la réponse (service JARVIS, commande say).
+// - MacSpeaker : dans l'application macOS, la voix du Mac lit la réponse (service Nova, commande say).
 
 // Choisit la voix française la plus naturelle disponible sur l'appareil.
 export function pickVoice(voices, lang = "fr-FR") {

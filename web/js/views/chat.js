@@ -5,8 +5,8 @@ import { btn, clear, confirmCard, download, el, empty, errorBox, handleError, ic
 
 const STEP_CLS = { termine: "ok", echec: "err", attente_autorisation: "wait", refuse: "err", ignore: "", en_cours: "", annule: "err" };
 
-export function composer(app, onSend, { placeholder = "Demandez quelque chose à JARVIS…" } = {}) {
-  const ta = el("textarea", { id: "composer-input", rows: 1, placeholder, "aria-label": "Message pour JARVIS" });
+export function composer(app, onSend, { placeholder = "Demandez quelque chose à Nova…" } = {}) {
+  const ta = el("textarea", { id: "composer-input", rows: 1, placeholder, "aria-label": "Message pour Nova" });
   const grow = () => { ta.style.height = "auto"; ta.style.height = Math.min(220, ta.scrollHeight) + "px"; };
   ta.addEventListener("input", grow);
   const send = async () => {
@@ -101,7 +101,7 @@ export async function render(view, params, app) {
           }, { cls: "sm ghost" }) : null,
           btn("Lire", () => app.voice.speak(m.content), { cls: "sm ghost", icon: "speaker", title: "Lire à voix haute" }),
           meta.status && ["bloquee", "echouee", "attente_reponse"].includes(meta.status) && meta.task_id ? btn("Reprendre", async () => { await post(`/api/tasks/${meta.task_id}/resume`); loadMessages(); }, { cls: "sm ghost", icon: "play" }) : null);
-        inner.append(el("div", { class: "msg assistant" }, el("div", { class: "who" }, "JARVIS ", when(m.created_at)), el("div", { class: "body" }, md(m.content)),
+        inner.append(el("div", { class: "msg assistant" }, el("div", { class: "who" }, "Nova ", when(m.created_at)), el("div", { class: "body" }, md(m.content)),
           meta.next_action ? el("div", { class: "small rare" }, "Prochaine action : ", meta.next_action) : null, line, stepsBox));
       }
     }
@@ -117,12 +117,12 @@ export async function render(view, params, app) {
     const toolSteps = t.steps.filter((s) => s.kind === "outil");
     const lastModel = [...t.steps].reverse().find((s) => s.kind === "modele" && s.result);
     const pending = t.confirmations.filter((x) => x.status === "en_attente");
-    live = el("div", { class: "msg assistant" }, el("div", { class: "who" }, "JARVIS"),
+    live = el("div", { class: "msg assistant" }, el("div", { class: "who" }, "Nova"),
       lastModel?.result?.message && toolSteps.length ? el("div", { class: "body" }, md(lastModel.result.message)) : null,
       lastModel?.result?.plan?.length ? el("div", { class: "small muted" }, el("b", {}, "Plan : "), lastModel.result.plan.join(" ; ")) : null,
       toolSteps.length ? el("div", { class: "steps" }, ...toolSteps.map(stepLine)) : null,
       ...pending.map((p) => confirmCard({ ...p, args: null }, () => setTimeout(loadMessages, 400))),
-      t.status === "en_cours" ? el("div", { class: "thinking" }, el("span", { class: "pulse" }), toolSteps.length ? "JARVIS travaille…" : "JARVIS réfléchit…",
+      t.status === "en_cours" ? el("div", { class: "thinking" }, el("span", { class: "pulse" }), toolSteps.length ? "Nova travaille…" : "Nova réfléchit…",
         btn("Interrompre", async () => { await post(`/api/tasks/${taskId}/cancel`); }, { cls: "sm ghost", icon: "stop" })) : null,
       t.status === "pause" ? el("div", { class: "thinking" }, "En pause.", btn("Reprendre", async () => { await post(`/api/tasks/${taskId}/resume`); }, { cls: "sm" })) : null);
     inner.append(live);

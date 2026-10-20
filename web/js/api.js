@@ -1,4 +1,4 @@
-// Accès à l'API locale de JARVIS. Le jeton est injecté par le serveur dans la page.
+// Accès à l'API locale de Nova. Le jeton est injecté par le serveur dans la page.
 const TOKEN = document.querySelector('meta[name="jarvis-token"]').content;
 
 export class ApiError extends Error {
@@ -17,10 +17,10 @@ export async function api(method, path, body) {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch (e) {
-    throw new ApiError({ code: "hors_ligne", message: "JARVIS ne répond pas. Le service local est peut-être arrêté." }, 0);
+    throw new ApiError({ code: "hors_ligne", message: "Nova ne répond pas. Le service local est peut-être arrêté." }, 0);
   }
   if (res.status === 401) {
-    // JARVIS a redémarré (nouveau jeton) : on recharge la page, une fois par minute au plus.
+    // Nova a redémarré (nouveau jeton) : on recharge la page, une fois par minute au plus.
     let last = 0;
     try { last = Number(sessionStorage.getItem("jarvis-reload") || 0); } catch { /* stockage indisponible */ }
     if (Date.now() - last > 60000) {

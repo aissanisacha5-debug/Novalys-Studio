@@ -30,7 +30,7 @@ MODES = {
 def default_settings() -> Dict[str, Any]:
     return {
         "appearance": {"theme": "obsidian-emerald", "animations": "normales", "density": "confortable"},
-        "assistant": {"name": "JARVIS", "detail_level": "normal", "language": "fr"},
+        "assistant": {"name": "Nova", "user_name": "Sacha", "detail_level": "normal", "language": "fr"},
         "ai": {
             "provider": "claude_code",
             "model": "sonnet",
@@ -54,7 +54,7 @@ def default_settings() -> Dict[str, Any]:
             "hands_free": False,
             "max_spoken_chars": 600,
             "stt_engine": "navigateur",
-            "wake_word": {"enabled": False, "phrase": "Jarvis"},
+            "wake_word": {"enabled": False, "phrase": "Nova"},
         },
         "notifications": {
             "enabled": True,

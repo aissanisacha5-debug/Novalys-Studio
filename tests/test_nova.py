@@ -1,5 +1,6 @@
 """Nova (tranche 1) : accueil plein écran, voix jouée par l'appareil, états « recherche » / « exécution » du noyau,
 et tests JavaScript de la conversation vocale (exécutés si Node est installé)."""
+import json
 import queue
 import shutil
 import subprocess
@@ -8,8 +9,10 @@ import unittest
 import urllib.request
 
 from jarvis import paths
+from jarvis.errors import ValidationError
 from jarvis.server import serve
-from jarvis.tools.registry import SEARCH_TOOLS, tool_phase
+from jarvis.tools.nova import normalize_view
+from jarvis.tools.registry import SEARCH_TOOLS, ToolContext, tool_phase
 from tests.helpers import TestEnv, act, say
 
 
@@ -109,7 +112,7 @@ class NovaPageTests(unittest.TestCase):
 
     def test_accueil_nova_et_console(self):
         home = self.get("/")
-        self.assertIn('id="nova-core"', home)
+        self.assertIn('id="nova-orb"', home)
         self.assertIn("jeton-nova", home)
         self.assertNotIn("__JARVIS_TOKEN__", home)
         console = self.get("/console")
@@ -124,8 +127,82 @@ class NovaPageTests(unittest.TestCase):
 
     def test_fichiers_nova_servis(self):
         for f in ("/js/nova/main.js", "/js/nova/session.js", "/js/nova/speaker.js", "/js/nova/listener.js",
-                  "/js/nova/states.js", "/js/echo.js", "/css/nova.css"):
+                  "/js/nova/states.js", "/js/nova/board.js", "/js/echo.js", "/css/nova.css"):
             self.assertTrue(self.get(f), f)
+
+    def api(self, method, path):
+        r = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", method=method,
+                                   headers={"Host": f"127.0.0.1:{self.port}", "X-Jarvis-Token": "jeton-nova"})
+        with urllib.request.urlopen(r, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))["data"]
+
+    def test_vue_nova_lue_puis_effacee(self):
+        self.assertIsNone(self.api("GET", "/api/nova/view")["view"])
+        ctx = ToolContext(self.app, 7, None, threading.Event(), None, "general")
+        self.app.tools.invoke("nova_afficher", DEMO["liste"], ctx)
+        view = self.api("GET", "/api/nova/view")["view"]
+        self.assertEqual([e["id"] for e in view["elements"]], ["lucas", "sonia", "thomas"])
+        self.assertEqual(view["task_id"], 7)
+        q = self.app.bus.subscribe()
+        try:
+            self.api("DELETE", "/api/nova/view")
+            ev = q.get(timeout=2)
+            while ev.get("type") != "nova_view":
+                ev = q.get(timeout=2)
+            self.assertIsNone(ev["view"])
+        finally:
+            self.app.bus.unsubscribe(q)
+        self.assertIsNone(self.api("GET", "/api/nova/view")["view"])
+
+
+DEMO = json.loads((paths.ROOT / "tests" / "fixtures" / "nova_demo.json").read_text(encoding="utf-8"))
+
+
+class NovaAffichageTests(unittest.TestCase):
+    def test_vue_liste_normalisee(self):
+        v = normalize_view(DEMO["liste"])
+        self.assertEqual(v["vue"], "liste")
+        lucas = v["elements"][0]
+        self.assertEqual(lucas["badge"], {"texte": "Froid", "ton": "froid"})
+        self.assertEqual(lucas["action"]["label"], "Action recommandée")
+        self.assertIsNone(v["detail"])
+
+    def test_vue_detail_et_validation(self):
+        v = normalize_view(dict(DEMO["liste"], detail=DEMO["detail"]))
+        self.assertEqual(v["vue"], "detail")
+        self.assertEqual(v["detail"]["gauche"]["total"], {"label": "Investissement", "valeur": "8 500 €"})
+        self.assertEqual(v["detail"]["validation"]["succes"], "Proposition envoyée")
+
+    def test_refus_des_vues_invalides(self):
+        base = DEMO["liste"]
+        bad = [dict(base, titre=""), dict(base, vue="tableau"), dict(base, selection="inconnu"),
+               dict(base, elements=[{"nom": "A", "badge": {"texte": "x", "ton": "violet"}}]),
+               dict(base, elements=[{"id": "a", "nom": "A"}, {"id": "a", "nom": "B"}]),
+               dict(base, elements=[{"nom": "A"}] * 9), dict(base, vue="detail"),
+               dict(base, elements=[{"nom": "<b>" + "x" * 200}])]
+        for a in bad:
+            with self.assertRaises(ValidationError, msg=str(a)[:120]):
+                normalize_view(a)
+
+    def test_outil_publie_la_vue_et_le_prompt_dit_nova(self):
+        env = TestEnv()
+        try:
+            app = env.make_app()
+            q = app.bus.subscribe()
+            ctx = ToolContext(app, 3, None, threading.Event(), None, "general")
+            r = app.tools.invoke("nova_afficher", dict(DEMO["liste"], selection="sonia"), ctx)
+            self.assertTrue(r["ok"], r)
+            ev = q.get(timeout=2)
+            while ev.get("type") != "nova_view":
+                ev = q.get(timeout=2)
+            self.assertEqual(ev["view"]["selection"], "sonia")
+            self.assertEqual(app.nova_view["task_id"], 3)
+            self.assertEqual(app.tools.get("nova_afficher").risk, "faible")
+            app.tools.invoke("nova_effacer", {}, ctx)
+            self.assertIsNone(app.nova_view)
+            self.assertEqual(app.settings.get("assistant.name"), "Nova")
+        finally:
+            env.close()
 
 
 @unittest.skipUnless(shutil.which("node"), "Node absent : tests JavaScript de Nova non exécutés")

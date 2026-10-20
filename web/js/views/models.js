@@ -26,7 +26,7 @@ export async function render(view, params, app) {
         el("div", { class: "form-row" }, field("Fournisseur", provSel), field("Modèle", modelSel), field("Modèle de remplacement", fbSel)),
         el("div", { class: "toolbar", style: { marginTop: "12px", marginBottom: 0 } },
           btn("Tester le fournisseur actif", async () => { const r = await post("/api/providers/test"); toast(r.ok ? `Réponse reçue de ${r.provider} / ${r.model} (${r.ms} ms)` : `Échec : ${r.detail}`, r.ok ? "" : "err"); }, { cls: "primary" })),
-        el("p", { class: "small muted" }, "JARVIS a son propre moteur : le fournisseur ne sert qu'à générer le texte, en arrière-plan ; aucune interface externe n'est ouverte. ",
+        el("p", { class: "small muted" }, "Nova a son propre moteur : le fournisseur ne sert qu'à générer le texte, en arrière-plan ; aucune interface externe n'est ouverte. ",
           "« Claude (via Claude Code) » réutilise la connexion de ce Mac à votre abonnement : pas de clé API ni de facturation à l'appel, mais les limites d'usage s'appliquent et Claude Code doit rester installé. ",
           "Tous les fournisseurs distants nécessitent Internet ; seul un modèle local (Ollama, LM Studio) fonctionne hors ligne.")),
       el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Fournisseur de remplacement et fournisseur compatible OpenAI"),
