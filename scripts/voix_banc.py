@@ -21,7 +21,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import wave
 from pathlib import Path
 from typing import Dict, List
