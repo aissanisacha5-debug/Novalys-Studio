@@ -6,7 +6,7 @@ import { NovaSession, MESSAGES } from "../../web/js/nova/session.js";
 import { deriveState, NOVA_STATES, CORE_STATE } from "../../web/js/nova/states.js";
 import { BrowserSpeaker, pickVoice } from "../../web/js/nova/speaker.js";
 import { isEcho } from "../../web/js/echo.js";
-import { avatarIndex, resolveKind, pendingFor } from "../../web/js/nova/board.js";
+import { avatarIndex, resolveKind, pendingFor, actionLabel } from "../../web/js/nova/board.js";
 
 function fakeClock() {
   let t = 1_000_000, id = 0; const timers = new Map();
@@ -259,4 +259,8 @@ test("tableau : teinte d'avatar stable, vue résolue, validation liée à la vra
   assert.equal(pendingFor(view, [{ id: 3, task_id: 12, status: "accordee" }]), null);
   assert.equal(pendingFor({ ...view, task_id: null }, [{ id: 4, task_id: null, status: "en_attente" }]), null);
   assert.equal(pendingFor({ ...view, detail: {} }, confs), null);   // pas de question : rien à valider
+  assert.equal(pendingFor(view, [{ id: 5, task_id: 12 }]), null);    // statut inconnu : jamais validable
+  assert.equal(pendingFor(view, [...confs, { id: 6, task_id: 12, status: "en_attente" }]), null);   // ambigu
+  assert.equal(actionLabel({ tool: "gmail_envoyer", action: "Envoyer l'e-mail", target: "sonia@exemple.fr" }), "Envoyer l'e-mail · sonia@exemple.fr");
+  assert.equal(actionLabel({ tool: "fichier_supprimer" }), "fichier_supprimer");
 });

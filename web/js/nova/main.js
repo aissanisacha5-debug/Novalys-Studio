@@ -79,8 +79,9 @@ api("GET", "/api/nova/view").then((r) => { if (r?.view) { board.show(r.view); re
 $("nova-orb").addEventListener("click", (e) => { e.stopPropagation(); session.tap(); });
 $("nova").addEventListener("click", () => session.tap());
 addEventListener("keydown", (e) => {
-  if (e.target.closest?.(".nova-card") && e.key === "Enter") return;
-  if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!board.approve()) session.tap(); }
+  // Valider exige le focus sur le bouton de validation (son propre clic) : jamais une touche tapée ailleurs.
+  if (e.target.closest?.("button, a, .nova-card") && (e.key === " " || e.key === "Enter")) return;
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); session.tap(); }
   if (e.key === "Escape") { if (!board.back()) session.stop(); }
 });
 document.addEventListener("visibilitychange", () => { if (document.hidden) session.suspend(); });

@@ -91,9 +91,11 @@ Reproduction de la vidéo envoyée par Sacha, seule la palette violette remplac�
   outils avec `nova_afficher` (source portée par chaque carte) et `nova_effacer` ; état servi par
   `GET/DELETE /api/nova/view` et l'événement `nova_view`. Tout est rendu en `textContent` (aucun HTML venant
   d'un e-mail).
-- **Validation réelle** : la question n'est active que si le moteur attend une confirmation pour la tâche qui a
-  affiché la vue. Valider (clic, Espace ou Entrée) approuve cette confirmation ; l'écran de succès n'apparaît
-  qu'une fois la tâche réellement terminée.
+- **Validation réelle** : la question n'est active que si le moteur attend exactement une confirmation pour la
+  tâche qui a affiché la vue (plusieurs : ambigu, à traiter dans la console). Sous la question du modèle, la barre
+  affiche l'action réelle décrite par le serveur (« Action réelle : … »). Valider exige le focus sur le bouton
+  (clic, ou Espace/Entrée sur le bouton) : une touche tapée ailleurs n'approuve jamais rien. L'écran de succès
+  n'apparaît qu'une fois la tâche réellement terminée.
 - **Renommage** : textes visibles de l'interface et de l'app Mac en « Nova » (Nova.app, menus, messages,
   mot d'activation par défaut « Nova », nouvelle icône). Identifiants internes conservés (`studio.novalys.jarvis`,
   `~/Library/Application Support/JARVIS`, trousseau, agent de lancement) pour garder données, autorisations micro

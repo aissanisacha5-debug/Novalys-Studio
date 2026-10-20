@@ -29,11 +29,18 @@ export function resolveKind(view, localDetail) {
   return "liste";
 }
 
-// La question de validation n'est active que si le moteur attend réellement une confirmation pour cette tâche.
+// La question de validation n'est active que si le moteur attend réellement UNE confirmation pour la tâche qui a
+// affiché la vue. Plusieurs confirmations en attente pour cette tâche : ambigu, rien n'est validable ici (console).
 export function pendingFor(view, confirmations) {
-  if (!view?.detail?.validation) return null;
-  const list = (confirmations || []).filter((c) => c.status === "en_attente" || c.status === undefined);
-  return list.find((c) => view.task_id != null && c.task_id === view.task_id) || null;
+  if (!view?.detail?.validation || view.task_id == null) return null;
+  const mine = (confirmations || []).filter((c) => c.status === "en_attente" && c.task_id === view.task_id);
+  return mine.length === 1 ? mine[0] : null;
+}
+
+// Ce que le moteur va réellement exécuter, décrit par le serveur (jamais par le texte du modèle).
+export function actionLabel(c) {
+  if (!c) return "";
+  return [c.action || c.tool, c.target && !String(c.action || "").includes(c.target) ? c.target : null].filter(Boolean).join(" · ");
 }
 
 function el(tag, cls, text) {
@@ -117,6 +124,8 @@ export class Board {
     btn.disabled = !this.canApprove;
     btn.classList.toggle("ready", this.canApprove);
     btn.classList.toggle("sending", !!this.awaiting);
+    const real = btn.querySelector(".real");
+    if (real) real.textContent = this.pending ? `Action réelle : ${actionLabel(this.pending)}` : "";
   }
 
   approveFailed() { this.awaiting = null; this.setConfirmations([]); }
@@ -206,7 +215,8 @@ export class Board {
     right.append(mail);
     if (d.validation) {
       const b = el("button", "nova-validate"); b.type = "button";
-      b.append(el("span", "dot"), el("span", "q", d.validation.question), el("span", "kbd", "ESPACE ↵"));
+      const q = el("span", "q"); q.append(el("span", null, d.validation.question), el("span", "real"));
+      b.append(el("span", "dot"), q, el("span", "kbd", "ESPACE ↵"));
       this.validateBtn = b; this.syncValidate();
       b.addEventListener("click", (e) => { e.stopPropagation(); this.approve(); });
       right.append(b);
