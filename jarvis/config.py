@@ -149,10 +149,19 @@ class Settings:
     def reload(self) -> None:
         row = self.db.one("SELECT value FROM settings WHERE key='prefs'")
         stored = loads(row["value"], {}) if row else {}
+        # Voix Nova : l'ancien débit par défaut (190, jamais modifié, sans réglage de hauteur) passe au débit de la
+        # voix de référence. Une fois « pitch » enregistré, plus rien n'est touché ; version restaurable dans l'historique.
+        vo = stored.get("voice") if isinstance(stored.get("voice"), dict) else None
+        upgrade = bool(vo) and "pitch" not in vo and vo.get("rate") == 190
+        if upgrade:
+            vo["rate"] = 200
+            vo["pitch"] = 42
         with self._lock:
             self._cache = _deep_merge(default_settings(), stored)
         if not row:
             self._save(self._cache, "valeurs par défaut")
+        elif upgrade:
+            self._save(self._cache, "voix Nova : débit et hauteur de la voix de référence")
 
     def all(self) -> Dict[str, Any]:
         with self._lock:

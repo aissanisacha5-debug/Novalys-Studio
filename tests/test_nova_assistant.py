@@ -146,5 +146,23 @@ class VoixMacTests(unittest.TestCase):
         self.assertEqual(names, ["Thomas (Français (France))", "Audrey (Premium)", "Reed (French (Canada))", "Albert"])
 
 
+    def test_ancien_debit_par_defaut_mis_a_jour_une_seule_fois(self):
+        env = TestEnv()
+        try:
+            app = env.make_app()
+            from jarvis.config import Settings
+            from jarvis.db import dumps
+            prefs = app.settings.all()
+            prefs["voice"]["rate"] = 190
+            del prefs["voice"]["pitch"]
+            app.db.execute("UPDATE settings SET value=? WHERE key='prefs'", (dumps(prefs),))
+            s = Settings(app.db)
+            self.assertEqual((s.get("voice.rate"), s.get("voice.pitch")), (200, 42))
+            s.update({"voice": {"rate": 190}}, "choix de Sacha")
+            self.assertEqual(Settings(app.db).get("voice.rate"), 190)      # un choix explicite reste respecté
+        finally:
+            env.close()
+
+
 if __name__ == "__main__":
     unittest.main()
