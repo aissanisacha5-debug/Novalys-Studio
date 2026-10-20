@@ -110,3 +110,29 @@ jamais chargées par l'application) ; la validation passe par une vraie confirma
 - L'app Mac n'a pas été recompilée ici (Linux) : à construire sur le Mac avec `python3 jarvis.py build`.
 - Les cartes n'apparaissent que si l'agent appelle `nova_afficher` ; la connexion Gmail et le briefing
   (tranches 3 et 4) fourniront les vraies données des rendez-vous et e-mails.
+
+## 5. Voix, conversation et actions (2026-10-20)
+
+### Voix de la vidéo de référence (mesurée, pas écoutée)
+- 0-11 s et 81-86 s : la personne qui parle à l'assistant (≈ 140 Hz). 12-78 s : l'assistant. Voix masculine grave
+  (F0 ≈ 108 Hz, fondamentale coupée par le micro du téléphone : lue sur l'écart des harmoniques), très expressive
+  (≈ 6 demi-tons), ≈ 5 syllabes/s, pauses courtes, musique dessous. Mesures croisées dans le conteneur et sur le Mac.
+- Banc `scripts/voix_banc.py` (voix du Mac, débits, hauteur `[[pbas N]]`) : la plus proche est Thomas à `[[pbas 42]]`,
+  200 mots/min (110 Hz, timbre 1 108 Hz contre 1 106 Hz). Aucune voix du Mac ne dépasse 3 demi-tons d'intonation :
+  une voix neuronale payante serait plus proche (non retenue).
+- **Choix de Sacha : garder Audrey (Premium)**, à son réglage d'origine (190 mots/min, `voice.pitch` = 0).
+  Le réglage `voice.pitch` reste disponible ; la mise à jour automatique 190 → 200/42 ne concerne que Thomas.
+
+### Ajouté
+- Réponse orale (consignes ajoutées seulement quand la demande est vocale) ; dire « je ne sais pas » plutôt qu'inventer.
+- `memoire_lister`, `memoire_oublier` ; `gmail_a_traiter` (à répondre / à relancer, règles déterministes, preuve citée,
+  jamais sur la seule ancienneté) ; `automatisation_lister|creer|activer|executer` (création et activation confirmées,
+  désactivation immédiate) ; reprise des exécutions interrompues ; `service_etat` et `service_demarrage_auto_activer`.
+- Liste des voix du Mac corrigée (noms suivis d'un seul espace ignorés auparavant).
+
+### Tests réels (Mac de Sacha)
+- Suite complète macOS : 131 tests OK. Fournisseur réel : réponse, fichier, parcours API + redémarrage, conversation
+  vocale avec contexte (2 tours) OK. Interruption de la voix : `say` arrêté en 6 ms, reprise normale.
+- Gmail novalys.studio@gmail.com connecté (compte vérifié avant activation) ; `gmail_a_traiter` réel : appel constaté,
+  5 fils analysés.
+- Non testé par Claude : l'écoute au micro (à essayer par Sacha).
