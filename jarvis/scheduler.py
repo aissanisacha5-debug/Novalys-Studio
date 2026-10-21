@@ -143,7 +143,18 @@ class Scheduler:
         self.app.db.execute("DELETE FROM automations WHERE id=?", (aid,))
 
     # -- boucle ----------------------------------------------------------------------------
+    def recover(self) -> int:
+        """Reprise après incident : une exécution restée « en_cours » appartient à un service arrêté brutalement.
+        Elle est marquée interrompue (jamais relancée en double) ; la prochaine échéance s'exécutera normalement."""
+        rows = self.app.db.all("SELECT r.id, a.name FROM automation_runs r JOIN automations a ON a.id=r.automation_id WHERE r.status='en_cours'")
+        for r in rows:
+            self.app.db.execute("UPDATE automation_runs SET status='interrompue', finished_at=?, error=? WHERE id=?",
+                                (now(), "service arrêté pendant l'exécution", r["id"]))
+            self.app.logbook.log("automatisation", f"« {r['name']} » interrompue par un arrêt du service", "attention")
+        return len(rows)
+
     def start(self) -> None:
+        self.recover()
         self._thread = threading.Thread(target=self._loop, daemon=True, name="planificateur")
         self._thread.start()
 

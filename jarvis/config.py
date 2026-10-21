@@ -30,7 +30,7 @@ MODES = {
 def default_settings() -> Dict[str, Any]:
     return {
         "appearance": {"theme": "obsidian-emerald", "animations": "normales", "density": "confortable"},
-        "assistant": {"name": "JARVIS", "detail_level": "normal", "language": "fr"},
+        "assistant": {"name": "Nova", "user_name": "Sacha", "detail_level": "normal", "language": "fr"},
         "ai": {
             "provider": "claude_code",
             "model": "sonnet",
@@ -46,7 +46,8 @@ def default_settings() -> Dict[str, Any]:
             "tts_engine": "macos_say",
             "voice": "Thomas",
             "volume": 0.8,
-            "rate": 190,
+            "rate": 200,       # ≈ 5 syllabes/s, le débit de la voix de la vidéo de référence (docs/NOVA.md § 5)
+            "pitch": 42,       # [[pbas 42]] : Thomas descend de 130 à ≈110 Hz, la hauteur de la voix de référence ; 0 = hauteur d'origine
             "auto_speak": False,
             "auto_send": True,
             "barge_in": True,
@@ -54,7 +55,7 @@ def default_settings() -> Dict[str, Any]:
             "hands_free": False,
             "max_spoken_chars": 600,
             "stt_engine": "navigateur",
-            "wake_word": {"enabled": False, "phrase": "Jarvis"},
+            "wake_word": {"enabled": False, "phrase": "Nova"},
         },
         "notifications": {
             "enabled": True,
@@ -148,10 +149,22 @@ class Settings:
     def reload(self) -> None:
         row = self.db.one("SELECT value FROM settings WHERE key='prefs'")
         stored = loads(row["value"], {}) if row else {}
+        # Voix Nova : l'ancien débit par défaut (190, jamais modifié, sans réglage de hauteur) passe au débit de la
+        # voix de référence. Une fois « pitch » enregistré, plus rien n'est touché ; version restaurable dans l'historique.
+        vo = stored.get("voice") if isinstance(stored.get("voice"), dict) else None
+        # (seulement pour Thomas : la hauteur 42 est calibrée sur lui ; une autre voix choisie par Sacha reste intacte)
+        upgrade = bool(vo) and "pitch" not in vo and vo.get("rate") == 190 and str(vo.get("voice", "Thomas")).startswith("Thomas")
+        if upgrade:
+            vo["rate"] = 200
+            vo["pitch"] = 42
+        elif vo and "pitch" not in vo:
+            vo["pitch"] = 0
         with self._lock:
             self._cache = _deep_merge(default_settings(), stored)
         if not row:
             self._save(self._cache, "valeurs par défaut")
+        elif upgrade:
+            self._save(self._cache, "voix Nova : débit et hauteur de la voix de référence")
 
     def all(self) -> Dict[str, Any]:
         with self._lock:
@@ -219,6 +232,8 @@ class Settings:
             raise ValidationError("voice.volume doit être entre 0 et 1.")
         if "rate" in vo and not (isinstance(vo["rate"], int) and 80 <= vo["rate"] <= 400):
             raise ValidationError("voice.rate doit être entre 80 et 400 mots/minute.")
+        if "pitch" in vo and not (isinstance(vo["pitch"], int) and (vo["pitch"] == 0 or 30 <= vo["pitch"] <= 70)):
+            raise ValidationError("voice.pitch : 0 (hauteur d'origine) ou entre 30 et 70.")
         if "allowed_dirs" in patch:
             dirs = patch["allowed_dirs"]
             if not isinstance(dirs, list):

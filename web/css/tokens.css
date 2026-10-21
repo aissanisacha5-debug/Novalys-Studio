@@ -94,3 +94,68 @@
 }
 :root[data-motion="reduites"] { --t-med: 80ms; --t-slow: 120ms; }
 :root[data-motion="aucune"] { --t-fast: 0ms; --t-med: 0ms; --t-slow: 0ms; }
+
+/* Nova — palette « vert billet ». Toute la couleur de l'accueil Nova vient d'ici (nova.css n'en code aucune).
+   Chaque couche reprend la fonction de la référence (fond brumeux, surfaces translucides, carte active lumineuse,
+   halo diffus) avec son équivalent vert. */
+:root {
+  --nova-green: #00C878;            /* vert billet principal */
+  --nova-green-bright: #00E69A;     /* émeraude lumineux */
+  --nova-green-deep: #006B45;       /* vert profond */
+  --nova-green-dark: #06271D;       /* vert sombre */
+  --nova-bg: #080B0A;               /* fond presque noir */
+  --nova-bg-2: #101713;             /* fond secondaire */
+  --nova-text: #EEF3F0;             /* blanc légèrement cassé */
+  --nova-text-2: #A9BDB3;           /* vert gris clair */
+  --nova-text-3: #6F8279;           /* étiquettes discrètes */
+  --nova-mint: #8CFFD6;             /* étiquettes « action recommandée » */
+
+  /* Atmosphère */
+  --nova-haze-top: rgba(150, 190, 172, 0.10);
+  --nova-haze-mid: rgba(0, 107, 69, 0.20);
+  --nova-haze-low: rgba(0, 40, 26, 0.55);
+  --nova-haze-home: rgba(0, 107, 69, 0.30);
+  --nova-vignette: rgba(3, 5, 4, 0.85);
+
+  /* Surfaces */
+  --nova-line: rgba(214, 240, 228, 0.16);
+  --nova-line-soft: rgba(214, 240, 228, 0.10);
+  --nova-rule: rgba(214, 240, 228, 0.22);
+  --nova-surface: rgba(176, 214, 198, 0.075);
+  --nova-surface-hover: rgba(176, 214, 198, 0.11);
+  --nova-surface-dim: rgba(176, 214, 198, 0.05);
+
+  /* Carte active */
+  --nova-active-a: rgba(0, 200, 120, 0.62);
+  --nova-active-b: rgba(0, 107, 69, 0.62);
+  --nova-active-line: rgba(0, 230, 154, 0.70);
+  --nova-halo: rgba(0, 230, 154, 0.22);
+  --nova-halo-strong: rgba(0, 230, 154, 0.34);
+  --nova-border: rgba(0, 200, 120, 0.30);
+
+  /* Zone d'action intégrée */
+  --nova-action-bg: rgba(150, 255, 215, 0.16);
+  --nova-action-line: rgba(160, 255, 220, 0.42);
+  --nova-action-icon: rgba(0, 60, 40, 0.55);
+
+  /* Noyau */
+  --nova-core: rgba(228, 255, 243, 0.95);
+  --nova-core-glow: rgba(0, 230, 154, 0.55);
+  --nova-core-halo: rgba(0, 200, 120, 0.20);
+  --nova-core-error: rgba(255, 110, 110, 0.6);
+
+  /* Badges de statut (couleurs fonctionnelles conservées) */
+  --nova-cold: #6CB6FF;     --nova-cold-bg: rgba(108, 182, 255, 0.20);
+  --nova-warm: #F2B45C;     --nova-warm-bg: rgba(242, 180, 92, 0.20);
+  --nova-hot: #FF6B86;      --nova-hot-bg: rgba(255, 107, 134, 0.20);
+  --nova-ok: #00E69A;       --nova-ok-bg: rgba(0, 230, 154, 0.20);
+  --nova-info: #B9CFC5;     --nova-info-bg: rgba(185, 207, 197, 0.10);
+  --nova-alert: #FF8A65;    --nova-alert-bg: rgba(255, 138, 101, 0.20);
+
+  /* Avatars (dégradés doux) */
+  --nova-av-ink: rgba(6, 39, 29, 0.55);
+  --nova-av-1: #7FE8C9; --nova-av-2: #F3B3D6; --nova-av-3: #8FD6E8; --nova-av-4: #C9E89A;
+
+  --nova-ease: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --nova-col: 680px;
+}

@@ -1,5 +1,13 @@
 # Journal des versions
 
+## Nova — tranche 1 (2026-10-20, non publiée)
+- Accueil Nova sur `/` : noyau lumineux plein écran, sept états (repos, écoute, réflexion, recherche, réponse vocale, exécution, erreur), aucun texte de réponse. Console JARVIS conservée sur `/console`.
+- Conversation vocale sur l'appareil : voix française la plus naturelle disponible, réponse lue en flux, interruption au toucher ou à la voix, erreurs audio expliquées, contexte conservé 6 h.
+- Service : `voice_out: "client"` sur `/api/chat` (événements `speech`), phase `recherche` / `execution` sur les événements d'outil.
+- Tests : `tests/test_nova.py`, `tests/js/nova.test.mjs`. Audit et plan : `docs/NOVA.md`.
+- Interface de la vidéo de référence en vert billet : cartes translucides, carte active qui se développe, détail à deux panneaux avec validation liée aux confirmations du moteur, écran de succès. Outils `nova_afficher` / `nova_effacer`, `GET/DELETE /api/nova/view`.
+- Nom visible « Nova » (interface, Nova.app, icône) ; identifiants internes et données inchangés.
+
 ## 0.5.0 — 2026-10-12 (prompt 6)
 - Vocal : envoi automatique par défaut (mode manuel en option), fin de phrase réglable, réponse lue phrase par phrase pendant la génération (flux réel du fournisseur), préchauffage du fournisseur, interruption vocale avec filtre d'écho, anti-doublon, réponse interrompue proprement.
 - Latence mesurée et affichée (premier fragment, premier son, total).

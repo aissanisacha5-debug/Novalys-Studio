@@ -10,7 +10,7 @@ export async function render(view, params, app) {
     const trig = (t) => ({ intervalle: `toutes les ${t.minutes} min`, quotidien: `chaque jour à ${t.heure}${t.jours && t.jours.length < 7 ? " (jours " + t.jours.join(",") + ")" : ""}`,
       date: `le ${t.quand}`, dossier: `fichier ajouté dans ${t.path}`, evenement: `événement ${t.kind}`, manuel: "manuel" }[t.type] || t.type);
     page.replaceChildren(
-      el("div", { class: "toolbar" }, el("p", { class: "muted", style: { margin: 0 } }, "Les automatisations tournent tant que JARVIS est ouvert. Elles respectent les permissions et ne contournent aucune confirmation."),
+      el("div", { class: "toolbar" }, el("p", { class: "muted", style: { margin: 0 } }, "Les automatisations tournent tant que Nova est ouvert. Elles respectent les permissions et ne contournent aucune confirmation."),
         el("span", { class: "grow" }), btn("Nouvelle automatisation", () => create(d, load), { cls: "primary", icon: "plus" })),
       el("table", { class: "table" }, el("thead", {}, el("tr", {}, ...["Active", "Nom", "Déclencheur", "Action", "Dernière exécution", "Prochaine", ""].map((h) => el("th", {}, h)))),
         el("tbody", {}, ...d.items.map((a) => el("tr", {},

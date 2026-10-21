@@ -21,7 +21,7 @@ export async function render(view, params, app) {
             el("dt", {}, "Avec confirmation"), el("dd", {}, perm.avec_confirmation.join(", ") || "—"), el("dt", {}, "Interdit"), el("dd", {}, perm.interdits.join(", ") || "—")),
           el("p", { class: "small faint" }, "Changer de mode demande votre confirmation et n'accorde aucun autre droit (dossiers, commandes et connecteurs restent inchangés).")),
         el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Secrets (trousseau macOS)"),
-          el("p", { class: "small muted" }, "Les clés et jetons sont stockés dans le trousseau, jamais dans la base, les journaux, les conversations ou les sauvegardes. JARVIS n'en affiche jamais la valeur."),
+          el("p", { class: "small muted" }, "Les clés et jetons sont stockés dans le trousseau, jamais dans la base, les journaux, les conversations ou les sauvegardes. Nova n'en affiche jamais la valeur."),
           el("div", { class: "list" }, ...secrets.map((x) => el("div", { class: "row" }, el("span", { class: "badge " + (x.present ? "ok" : "plain") }, x.present ? "enregistré" : "absent"), el("div", { class: "main-col small" }, x.label),
             btn(x.present ? "Remplacer" : "Ajouter", () => {
               const v = input({ type: "password", autocomplete: "off" });

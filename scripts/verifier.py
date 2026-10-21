@@ -101,7 +101,7 @@ def check_js():
 def check_css():
     tokens = (ROOT / "web" / "css" / "tokens.css").read_text(encoding="utf-8")
     defined = set(re.findall(r"(--[\w-]+)\s*:", tokens))
-    for f in [ROOT / "web" / "css" / "app.css", *sorted((ROOT / "web" / "js").rglob("*.js"))]:
+    for f in [ROOT / "web" / "css" / "app.css", ROOT / "web" / "css" / "nova.css", *sorted((ROOT / "web" / "js").rglob("*.js"))]:
         src = f.read_text(encoding="utf-8")
         defined |= set(re.findall(r"(--[\w-]+)\s*:", src))
         for v in set(re.findall(r"var\((--[\w-]+)", src)):

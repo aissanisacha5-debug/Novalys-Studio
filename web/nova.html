@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="jarvis-token" content="__JARVIS_TOKEN__">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#080B0A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Nova</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/nova.css">
+</head>
+<body data-state="repos" data-view="accueil">
+  <div class="nova-atmo" aria-hidden="true"></div>
+  <main class="nova" id="nova">
+    <section class="nova-home" id="nova-home" aria-label="Accueil">
+      <div class="nova-greet">
+        <h1 class="nova-hello" id="nova-hello"></h1>
+        <p class="nova-date" id="nova-date"></p>
+      </div>
+      <button class="nova-orb" id="nova-orb" type="button" aria-label="Parler à Nova"><span class="nova-orb-ring" aria-hidden="true"></span></button>
+      <p class="nova-hint" id="nova-hint" aria-live="polite"></p>
+    </section>
+    <section class="nova-board" id="nova-board" aria-live="polite"></section>
+  </main>
+  <a class="nova-console" href="/console" aria-label="Ouvrir la console">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+  </a>
+  <script type="module" src="/js/nova/main.js"></script>
+</body>
+</html>

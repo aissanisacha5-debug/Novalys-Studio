@@ -1,0 +1,33 @@
+{
+  "_avertissement": "DONNÉES DE DÉMONSTRATION pour les tests visuels de Nova. Personnes et entreprises fictives. Jamais chargées par l'application.",
+  "liste": {
+    "titre": "Debrief des rendez-vous",
+    "meta": "Démo · 3 rendez-vous",
+    "elements": [
+      {"id": "lucas", "nom": "Lucas", "contexte": "Indépendant · vient de se lancer", "resume": "Voulait surtout comprendre ce qu'est un assistant IA",
+       "details": "Débute son activité, curieux mais sans budget ni besoin urgent pour l'instant.",
+       "badge": {"texte": "Froid", "ton": "froid"}, "action": {"texte": "Rappel programmé · fin août 2027", "icone": "rappel"},
+       "source": {"type": "démonstration"}},
+      {"id": "sonia", "nom": "Sonia", "contexte": "Studio Mosaïque · agence 25 personnes", "resume": "Veut centraliser ses communications et automatiser ses process",
+       "details": "Communications éclatées entre mail, Instagram, WhatsApp et téléphone. Très motivée, décisionnaire.",
+       "badge": {"texte": "Chaud", "ton": "chaud"}, "action": {"texte": "Tour de contrôle + assistant IA · 8 500 €", "icone": "document"},
+       "source": {"type": "démonstration"}},
+      {"id": "thomas", "nom": "Thomas", "contexte": "Cabinet Méridien · expertise comptable", "resume": "Veut automatiser les relances de documents à ses clients",
+       "details": "Intéressé mais doit valider le budget avec ses associés avant de s'engager.",
+       "badge": {"texte": "Tiède", "ton": "tiede"}, "action": {"texte": "Envoi d'un cas client similaire · point reprogrammé", "icone": "email"},
+       "source": {"type": "démonstration"}}
+    ]
+  },
+  "detail": {
+    "element": "sonia",
+    "gauche": {"surtitre": "Proposition · Studio Mosaïque",
+      "sections": [{"titre": "Besoin", "texte": "Communications éclatées · process manuels chronophages"},
+                   {"titre": "Périmètre", "puces": ["Tour de contrôle : mail, Instagram, WhatsApp et téléphone centralisés",
+                     "Assistant IA : réponses suggérées + relances automatiques", "Génération de devis et de briefs clients à la voix"]}],
+      "total": {"label": "Investissement", "valeur": "8 500 €"}},
+    "droite": {"a": "sonia@exemple.fr", "sujet": "Ta proposition — Novalys Studio",
+      "corps": "Bonjour Sonia,\n\nRavi de notre échange d'hier. Comme convenu, je te transmets notre proposition pour centraliser vos communications et automatiser vos process avec une tour de contrôle et un assistant IA.\n\nLe détail est dans le PDF joint. On se rappelle cette semaine pour en discuter ?\n\nÀ très vite,\nSacha",
+      "piece": {"nom": "proposition-studio-mosaique.pdf", "info": "2 pages"}},
+    "validation": {"question": "Tu valides l'envoi à Sonia ?", "succes": "Proposition envoyée", "succes_detail": "Je te préviens dès que Sonia l'ouvre"}
+  }
+}

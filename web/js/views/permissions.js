@@ -43,15 +43,15 @@ export async function render(view, params, app) {
     const sec = (title, ...children) => el("section", { class: "panel", style: { marginBottom: "16px" } }, el("h3", { style: { marginTop: 0 } }, title), ...children);
 
     page.replaceChildren(
-      el("div", { class: "toolbar" }, el("p", { class: "lead", style: { margin: 0 } }, "Ce que JARVIS peut faire seul, et ce qui demande votre accord. Retirer un droit s'applique immédiatement ; en ajouter un demande une confirmation."),
+      el("div", { class: "toolbar" }, el("p", { class: "lead", style: { margin: 0 } }, "Ce que Nova peut faire seul, et ce qui demande votre accord. Retirer un droit s'applique immédiatement ; en ajouter un demande une confirmation."),
         el("span", { class: "grow" }),
         btn("Tout arrêter maintenant", async () => { const r = await post("/api/stop-all", {}); app.voice.stopListening(); toast(`Arrêt : ${r.cancelled.length} tâche(s) annulée(s), voix et navigateur piloté coupés.`); }, { cls: "danger", icon: "stop" })),
       sec("Voix",
         el("div", { class: "form" },
           toggle("Envoi automatique : la phrase est envoyée dès la fin de parole (la transcription reste affichée)", v.auto_send !== false, (x) => saveVoice({ auto_send: x }, x ? "Envoi automatique activé." : "Mode manuel : vous validez la transcription.")),
-          toggle("Conversation continue : JARVIS réécoute après chaque réponse (« stop » pour finir)", !!v.hands_free, (x) => { saveVoice(x ? { hands_free: true, auto_speak: true } : { hands_free: false }, x ? "Conversation continue activée." : "Conversation continue désactivée."); if (x && !app.voice.listening) app.voice.startListening(); }),
-          toggle("Interruption vocale : si vous parlez pendant sa réponse, JARVIS se tait et vous écoute", v.barge_in !== false, (x) => saveVoice({ barge_in: x })),
-          field("Silence qui marque la fin d'une phrase (application JARVIS)", el("div", { style: { display: "flex", gap: "12px", alignItems: "center" } }, silence, silenceLabel)))),
+          toggle("Conversation continue : Nova réécoute après chaque réponse (« stop » pour finir)", !!v.hands_free, (x) => { saveVoice(x ? { hands_free: true, auto_speak: true } : { hands_free: false }, x ? "Conversation continue activée." : "Conversation continue désactivée."); if (x && !app.voice.listening) app.voice.startListening(); }),
+          toggle("Interruption vocale : si vous parlez pendant sa réponse, Nova se tait et vous écoute", v.barge_in !== false, (x) => saveVoice({ barge_in: x })),
+          field("Silence qui marque la fin d'une phrase (application Nova)", el("div", { style: { display: "flex", gap: "12px", alignItems: "center" } }, silence, silenceLabel)))),
       sec("Niveau d'autonomie",
         el("div", { class: "form-row" }, field("Niveau", level)),
         el("p", { class: "small muted" }, d.levels[d.level]),
@@ -65,7 +65,7 @@ export async function render(view, params, app) {
         el("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } },
           btn("Autoriser un dossier en lecture", () => addDir("r"), { cls: "sm", icon: "plus" }),
           btn("Autoriser un dossier en écriture", () => addDir("rw"), { cls: "sm", icon: "plus" })),
-        el("p", { class: "small faint" }, "Les autorisations sont conservées après redémarrage. Pour les dossiers protégés par macOS (Documents, Bureau, Téléchargements), macOS demande une seule fois l'accord pour JARVIS ; il le mémorise ensuite (Réglages Système > Confidentialité et sécurité > Fichiers et dossiers).")),
+        el("p", { class: "small faint" }, "Les autorisations sont conservées après redémarrage. Pour les dossiers protégés par macOS (Documents, Bureau, Téléchargements), macOS demande une seule fois l'accord pour Nova ; il le mémorise ensuite (Réglages Système > Confidentialité et sécurité > Fichiers et dossiers).")),
       sec("Autorisations « ne plus demander »",
         d.policies.length ? el("div", { class: "list" }, ...d.policies.map((p) => el("div", { class: "row" }, el("span", { class: "mono" }, p.tool),
           el("div", { class: "main-col small" }, el("span", { class: "mono" }, p.scope), el("div", { class: "d xs" }, `accordée ${when(p.created_at)}`)),
@@ -86,8 +86,8 @@ export async function render(view, params, app) {
         lat.length ? el("table", { class: "table" }, el("thead", {}, el("tr", {}, ...["Premier fragment", "Premier son", "Réponse complète", "Préchauffé", "Statut"].map((h) => el("th", {}, h)))),
           el("tbody", {}, ...lat.map((l) => el("tr", {}, el("td", {}, l.premier_fragment_ms != null ? `${l.premier_fragment_ms} ms` : "—"),
             el("td", {}, l.premier_son_ms != null ? `${l.premier_son_ms} ms` : "—"), el("td", {}, `${l.total_ms} ms`), el("td", {}, l.prechauffe ? "oui" : "non"), el("td", { class: "small" }, l.statut)))))
-          : el("p", { class: "faint small" }, "Aucune mesure : parlez à JARVIS (ou activez la lecture des réponses) pour en obtenir."),
-        el("p", { class: "small faint" }, "Mesuré à partir de la réception de la phrase par JARVIS (la durée de votre phrase et la reconnaissance vocale ne sont pas comprises).")));
+          : el("p", { class: "faint small" }, "Aucune mesure : parlez à Nova (ou activez la lecture des réponses) pour en obtenir."),
+        el("p", { class: "small faint" }, "Mesuré à partir de la réception de la phrase par Nova (la durée de votre phrase et la reconnaissance vocale ne sont pas comprises).")));
   }
   await load();
 }

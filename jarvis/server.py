@@ -41,6 +41,8 @@ class Api:
         self.routes: List[Route] = []
         r = self.add
         r("GET", r"/api/state", self.state)
+        r("GET", r"/api/nova/view", lambda q, b: {"view": self.app.nova_view})
+        r("DELETE", r"/api/nova/view", self.nova_clear)
         r("POST", r"/api/chat", self.chat)
         r("GET", r"/api/conversations", lambda q, b: self.app.conversations.list(q.get("archived") == "1",
                                                                                    _int(q.get("project")), q.get("q", "")))
@@ -163,11 +165,17 @@ class Api:
                          "assistant": app.settings.get("assistant"), "shortcuts": app.settings.get("shortcuts")},
         }
 
+    def nova_clear(self, q, b):
+        self.app.nova_view = None
+        self.app.bus.publish({"type": "nova_view", "task_id": None, "view": None})
+        return {"cleared": True}
+
     def chat(self, q, b):
         cts = b.get("client_ts")
         return self.app.send_message(_int(b.get("conversation_id")), b.get("text", ""), _int(b.get("project_id")),
                                      b.get("agent", "general") if b.get("agent") in profiles.PROFILES else "general", b.get("source", "texte"),
-                                     float(cts) / 1000 if isinstance(cts, (int, float)) else None)
+                                     float(cts) / 1000 if isinstance(cts, (int, float)) else None,
+                                     "client" if b.get("voice_out") == "client" else "mac")
 
     def conv_get(self, q, b, i):
         c = self.app.conversations.get(int(i))
@@ -551,13 +559,13 @@ def make_handler(api: Api, port: int):
                 self._send(500, {"ok": False, "error": {"code": "erreur_interne", "message": str(e)}})
 
         def _static(self, path):
-            if path in ("", "/"):
-                path = "/index.html"
+            # Accueil : Nova (noyau plein écran). L'interface complète de JARVIS reste disponible sur /console.
+            path = {"": "/nova.html", "/": "/nova.html", "/console": "/index.html"}.get(path, path)
             target = (paths.WEB_DIR / path.lstrip("/")).resolve()
             if not str(target).startswith(str(paths.WEB_DIR.resolve())) or not target.is_file():
                 return self._send(404, {"error": {"code": "introuvable", "message": "Fichier introuvable."}})
             data = target.read_bytes()
-            if target.name == "index.html":
+            if target.suffix == ".html":
                 data = data.replace(b"__JARVIS_TOKEN__", api.token.encode())
             ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
             if ctype.startswith("text/") or ctype in ("application/javascript",):

@@ -52,7 +52,7 @@ class RealProviderTests(unittest.TestCase):
                 return json.loads(r.read())["data"] if "json" in r.headers.get("Content-Type", "") else r.read()
 
         html = call("GET", "/")
-        self.assertIn(b"JARVIS", html)
+        self.assertIn(b"nova-orb", html)
         r = call("POST", "/api/chat", {"text": "Crée le fichier parcours/ok.md avec le titre « Parcours validé », vérifie-le et rends compte."})
         t = self.env.wait_task(r["task_id"], timeout=240)
         self.assertEqual(t["status"], "terminee", t["result"])
@@ -68,6 +68,36 @@ class RealProviderTests(unittest.TestCase):
         app2 = self.env.make_app()
         self.assertEqual(app2.tasks.detail(r["task_id"])["status"], "terminee")
         self.assertEqual(len(app2.conversations.messages(r["conversation_id"])), 2)
+
+    def test_conversation_vocale_nova_garde_le_contexte(self):
+        """Deux tours vocaux (voix lue par l'appareil) : réponse prononcée en phrases, contexte conservé."""
+        q = self.app.bus.subscribe()
+        r = self.app.send_message(None, "Pour cette conversation, retiens que le nom de code du projet est Orion. Réponds juste : c'est noté.",
+                                  source="voix", voice_out="client")
+        self.assertEqual(self.env.wait_task(r["task_id"], timeout=180)["status"], "terminee")
+        r2 = self.app.send_message(r["conversation_id"], "Quel est le nom de code du projet ?", source="voix", voice_out="client")
+        t2 = self.env.wait_task(r2["task_id"], timeout=180)
+        self.assertEqual(t2["status"], "terminee", t2["result"])
+        self.assertIn("orion", t2["result"].lower())
+        spoken = []
+        while not q.empty():
+            ev = q.get_nowait()
+            if ev.get("type") == "speech" and ev.get("task_id") == r2["task_id"]:
+                spoken.append(ev["text"])
+        self.app.bus.unsubscribe(q)
+        self.assertTrue(spoken, "aucune phrase envoyée à la voix")
+        self.assertNotRegex(" ".join(spoken), r"[*#`]")       # rien de « markdown » prononcé
+
+    def test_tri_gmail_reel(self):
+        ok, why = self.app.tools.get("gmail_a_traiter").available(self.app)
+        if not ok:
+            self.skipTest(f"Gmail non connecté : {why}")
+        from jarvis.tools.registry import ToolContext
+        import threading
+        r = self.app.tools.invoke("gmail_a_traiter", {"jours": 7, "max": 5}, ToolContext(self.app, None, None, threading.Event(), None, "general"))
+        self.assertEqual(r["state"], "confirme", r)
+        res = r["result"]
+        self.assertEqual(res["fils_analyses"], len(res["a_repondre"]) + len(res["a_relancer"]) + len(res["rien_a_faire"]))
 
 
 if __name__ == "__main__":

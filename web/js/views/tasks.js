@@ -17,11 +17,11 @@ export async function render(view, params, app) {
   async function load() {
     let rows;
     try { rows = await get(`/api/tasks?status=${filter}`); } catch (e) { return body.replaceChildren(errorBox(e)); }
-    if (!rows.length) return body.replaceChildren(empty("Aucune tâche ici.", "Créez une tâche ou demandez quelque chose à JARVIS."));
+    if (!rows.length) return body.replaceChildren(empty("Aucune tâche ici.", "Créez une tâche ou demandez quelque chose à Nova."));
     body.replaceChildren(el("table", { class: "table" },
       el("thead", {}, el("tr", {}, el("th", {}, "Tâche"), el("th", {}, "Statut"), el("th", {}, "Résultat"), el("th", {}, "Agent"), el("th", {}, "Projet"), el("th", {}, "Échéance"), el("th", {}, ""))),
       el("tbody", {}, ...rows.map((t) => el("tr", {},
-        el("td", {}, el("a", { href: `#/taches/${t.id}` }, t.title), el("div", { class: "faint xs" }, `#${t.id} – ${t.kind === "todo" ? "manuelle" : "exécutée par JARVIS"} – ${when(t.updated_at)}`)),
+        el("td", {}, el("a", { href: `#/taches/${t.id}` }, t.title), el("div", { class: "faint xs" }, `#${t.id} – ${t.kind === "todo" ? "manuelle" : "exécutée par Nova"} – ${when(t.updated_at)}`)),
         el("td", {}, status(t.status)), el("td", {}, t.result_state ? status(t.result_state) : ""), el("td", { class: "small" }, t.agent),
         el("td", { class: "small" }, t.project_name || ""), el("td", { class: "small" }, t.due_date || ""),
         el("td", {}, actions(t, load)))))));
@@ -46,7 +46,7 @@ function editModal(t, reload) {
   const title = input({ value: t.title }), due = input({ type: "datetime-local", value: (t.due_date || "").slice(0, 16).replace(/^(\d{4}-\d\d-\d\d)$/, "$1T09:00") });
   const prio = select([[3, "Haute"], [2, "Normale"], [1, "Basse"]], t.priority);
   modal("Modifier la tâche", el("div", { class: "form" }, field("Titre", title), el("div", { class: "form-row" }, field("Échéance", due), field("Priorité", prio)),
-    el("p", { class: "small faint" }, "Une notification macOS est envoyée à l'échéance si JARVIS (ou son service) est en marche.")),
+    el("p", { class: "small faint" }, "Une notification macOS est envoyée à l'échéance si Nova (ou son service) est en marche.")),
     ["close", (close) => btn("Enregistrer", async () => { await patch(`/api/tasks/${t.id}`, { title: title.value, due_date: due.value || null, priority: Number(prio.value) }); close(); reload(); }, { cls: "primary" })]);
 }
 
@@ -61,7 +61,7 @@ function createModal(app, reload) {
   get("/api/projects").then((ps) => ps.forEach((p) => projSel.append(el("option", { value: p.id }, p.name))));
   modal("Nouvelle tâche", el("div", { class: "form" }, field("Titre", title), field("Objectif", obj),
     el("div", { class: "form-row" }, field("Priorité", prio), field("Échéance", due), field("Projet", projSel)),
-    el("label", { class: "switch" }, exec, "Faire exécuter par JARVIS maintenant"), field("Agent", agent)),
+    el("label", { class: "switch" }, exec, "Faire exécuter par Nova maintenant"), field("Agent", agent)),
     ["close", (close) => btn("Créer la tâche", async () => {
       await post("/api/tasks", { title: title.value, objective: obj.value || title.value, execute: exec.checked, priority: Number(prio.value),
         due_date: due.value || null, project_id: projSel.value || null, agent: agent.value });

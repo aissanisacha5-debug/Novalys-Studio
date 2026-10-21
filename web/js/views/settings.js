@@ -30,13 +30,13 @@ export async function render(view, params, app) {
         field(`Volume`, range(s.voice.volume, 0, 1, 0.05, (x) => save({ voice: { volume: x } }))),
         field(`Vitesse de parole (mots par minute)`, range(s.voice.rate, 120, 300, 10, (x) => save({ voice: { rate: x } }))),
         toggle("Lire les réponses à voix haute", s.voice.auto_speak, (x) => save({ voice: { auto_speak: x } })),
-        btn("Tester la voix", () => post("/api/voice/speak", { text: "Bonjour Sacha, je suis JARVIS. Tout est en ordre." }), { cls: "sm", icon: "speaker" }),
+        btn("Tester la voix", () => post("/api/voice/speak", { text: "Bonjour Sacha, je suis Nova. Tout est en ordre." }), { cls: "sm", icon: "speaker" }),
         el("p", { class: "small faint" }, "Mot d'activation : non disponible dans cette version (aucune écoute permanente).")),
       sec("Service et démarrage",
         el("dl", { class: "kv" }, el("dt", {}, "Service"), el("dd", {}, `actif depuis ${Math.round(svc.uptime_s / 60)} min, lancé par ${svc.launched_by} (processus ${svc.pid})`),
           el("dt", {}, "Fenêtres connectées"), el("dd", {}, String(svc.windows_connected)),
           el("dt", {}, "Données"), el("dd", { class: "mono" }, svc.data_dir), el("dt", {}, "Espace de travail"), el("dd", { class: "mono" }, svc.workspace_dir)),
-        toggle("Démarrer le service JARVIS automatiquement à l'ouverture de session (garde rappels et automatisations actifs, même application quittée)",
+        toggle("Démarrer le service Nova automatiquement à l'ouverture de session (garde rappels et automatisations actifs, même application quittée)",
           svc.autostart, async (x, i) => {
             try { await post("/api/service/autostart", { enabled: x }); toast(x ? "Démarrage automatique activé." : "Démarrage automatique désactivé."); load(); }
             catch (e) { i.checked = svc.autostart; handleError(e); setTimeout(load, 1200); }
@@ -61,7 +61,7 @@ export async function render(view, params, app) {
           field("Budget mensuel ($)", num(s.budget.monthly_usd, (x) => save({ budget: { monthly_usd: x } }), { min: 0, step: 1 }))),
         toggle("Arrêt automatique en cas de dépassement", s.budget.stop_on_exceed, (x) => save({ budget: { stop_on_exceed: x } }))),
       sec("Scripts approuvés",
-        el("p", { class: "small muted" }, "Scripts que JARVIS peut lancer à votre demande (outil « script_executer »), toujours via les contrôles du terminal (commande autorisée, dossier autorisé, délai). Ajouter ou retirer un script demande votre confirmation."),
+        el("p", { class: "small muted" }, "Scripts que Nova peut lancer à votre demande (outil « script_executer »), toujours via les contrôles du terminal (commande autorisée, dossier autorisé, délai). Ajouter ou retirer un script demande votre confirmation."),
         Object.keys(s.scripts_approuves || {}).length ? el("div", { class: "list" }, ...Object.entries(s.scripts_approuves).map(([n, d]) => el("div", { class: "row" },
           el("span", { class: "mono" }, n), el("div", { class: "main-col small" }, el("span", { class: "mono" }, d.command), d.description ? el("div", { class: "d xs" }, d.description) : null),
           btn("Retirer", async () => { const c = { ...s.scripts_approuves }; delete c[n]; await saveScripts(c); }, { cls: "sm ghost" }))))

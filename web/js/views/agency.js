@@ -23,7 +23,7 @@ export async function render(view, params, app) {
       el("div", { class: "metric" }, el("div", { class: "v" }, eur(d.revenus.devis_ouverts)), el("div", { class: "l" }, "devis ouverts (prévision)")),
       el("div", { class: "metric" }, el("div", { class: "v" }, d.oppositions.length), el("div", { class: "l" }, "oppositions (jamais contactées)"))),
     el("div", { class: "panel" }, el("h3", { style: { marginTop: 0 } }, "Prospection assistée"),
-      el("p", { class: "small muted" }, "JARVIS cherche des entreprises, audite leurs sites publics, écarte les doublons et les oppositions, puis prépare des brouillons. Il n'envoie rien."),
+      el("p", { class: "small muted" }, "Nova cherche des entreprises, audite leurs sites publics, écarte les doublons et les oppositions, puis prépare des brouillons. Il n'envoie rien."),
       el("div", { class: "toolbar", style: { marginBottom: 0 } }, sector,
         btn("Lancer la recherche", () => quickAsk(`Trouve 5 entreprises pertinentes (${sector.value || "commerces locaux"}) qui auraient besoin d'un site ou d'un meilleur site. Pour chacune : source, audit public du site, vérifie qu'elle n'est pas déjà dans le CRM ni dans les oppositions, qualifie-la et prépare un brouillon d'e-mail local personnalisé (sans prix inventés). N'envoie rien.`), { cls: "primary" }))),
     el("div", { class: "toolbar", style: { marginTop: "20px" } }, tabs, el("span", { class: "grow" }), filter),

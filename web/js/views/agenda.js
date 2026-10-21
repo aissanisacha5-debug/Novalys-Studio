@@ -11,7 +11,7 @@ export async function render(view, params, app) {
   const plan = el("div"), gcal = el("div");
   view.append(el("div", { class: "page" },
     el("div", { class: "toolbar" }, el("div", { style: { width: "180px" } }, day), btn("Préparer le planning", () => loadPlan(), { cls: "primary" }),
-      btn("Résumé de la semaine par JARVIS", () => quickAsk("Prépare mon résumé hebdomadaire : tâches terminées, en retard, échéances de la semaine prochaine, et propose des blocs de travail."), { cls: "ghost" })),
+      btn("Résumé de la semaine par Nova", () => quickAsk("Prépare mon résumé hebdomadaire : tâches terminées, en retard, échéances de la semaine prochaine, et propose des blocs de travail."), { cls: "ghost" })),
     el("div", { class: "grid-2" }, el("div", {}, el("h3", { style: { marginTop: 0 } }, "Planning proposé"), plan), el("div", {}, el("h3", { style: { marginTop: 0 } }, "Google Agenda"), gcal))));
   async function loadPlan() {
     plan.replaceChildren(loading());

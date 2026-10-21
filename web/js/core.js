@@ -1,4 +1,4 @@
-// Noyau visuel JARVIS : canvas 2D léger. Son état vient UNIQUEMENT des événements réels du backend
+// Noyau visuel Nova : canvas 2D léger. Son état vient UNIQUEMENT des événements réels du backend
 // (tâche, outil, modèle, confirmation, erreur, micro) — jamais d'activité simulée.
 // Couleurs lues dans les jetons du système de design (tokens.css) : changer la palette ne demande aucune modification ici.
 function tokenRGB(name, fallback) {
@@ -13,11 +13,13 @@ const COLORS = {
 const STATES = {
   attente:      { label: "Prêt",                 c: "emerald",   energy: 0.18, speed: 0.15, pulse: 0.25, arcs: 0 },
   transcription:{ label: "Transcription",         c: "bright",    energy: 0.5,  speed: 0.4,  pulse: 0.8,  arcs: 1 },
-  parle:        { label: "JARVIS parle",          c: "emerald",   energy: 0.5,  speed: 0.3,  pulse: 1.2,  arcs: 0 },
+  parle:        { label: "Nova parle",          c: "emerald",   energy: 0.5,  speed: 0.3,  pulse: 1.2,  arcs: 0 },
   hors_ligne:   { label: "Service indisponible",  c: "red",       energy: 0.1,  speed: 0.05, pulse: 0.1,  arcs: 0 },
   ecoute:       { label: "Écoute active",         c: "bright",    energy: 0.55, speed: 0.3,  pulse: 1.0,  arcs: 1 },
   reflexion:    { label: "Réflexion",             c: "emerald",   energy: 0.45, speed: 0.55, pulse: 0.35, arcs: 2 },
   outil:        { label: "Utilise un outil",      c: "bright",    energy: 0.7,  speed: 1.1,  pulse: 0.3,  arcs: 3, focus: true },
+  recherche:    { label: "Recherche",             c: "champagne", energy: 0.6,  speed: 0.9,  pulse: 0.45, arcs: 2, focus: true },
+  execution:    { label: "Exécution",             c: "bright",    energy: 0.75, speed: 1.2,  pulse: 0.3,  arcs: 3, progress: true },
   tache:        { label: "Tâche en cours",        c: "emerald",   energy: 0.55, speed: 0.7,  pulse: 0.3,  arcs: 2, progress: true },
   autorisation: { label: "Attend votre accord",   c: "champagne", energy: 0.4,  speed: 0.2,  pulse: 0.6,  arcs: 1 },
   erreur:       { label: "Erreur",                c: "red",       energy: 0.35, speed: 0.1,  pulse: 0.8,  arcs: 0 },

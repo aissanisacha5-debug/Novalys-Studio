@@ -12,14 +12,14 @@ export async function render(view, params, app) {
   const out = el("div");
   const drafts = el("div");
   view.append(el("div", { class: "page" },
-    el("p", { class: "lead" }, "JARVIS prépare, vous envoyez. Aucun envoi, transfert, réponse automatique ni suppression n'est possible depuis JARVIS : l'envoi n'est pas activé."),
+    el("p", { class: "lead" }, "Nova prépare, vous envoyez. Aucun envoi, transfert, réponse automatique ni suppression n'est possible depuis Nova : l'envoi n'est pas activé."),
     el("div", { class: "grid-2" },
       el("div", {}, el("h3", { style: { marginTop: 0 } }, "Gmail"),
         gm.available ? el("div", {}, el("div", { class: "toolbar" }, q, btn("Rechercher", search, { cls: "primary" })), out)
-          : el("div", { class: "unavailable" }, el("b", {}, "Gmail n'est pas activé dans JARVIS. "), gm.unavailable_reason, ". ", el("a", { href: "#/applications" }, "Ouvrir Applications connectées"))),
+          : el("div", { class: "unavailable" }, el("b", {}, "Gmail n'est pas activé dans Nova. "), gm.unavailable_reason, ". ", el("a", { href: "#/applications" }, "Ouvrir Applications connectées"))),
       el("div", {}, el("h3", { style: { marginTop: 0 } }, "Préparer un brouillon"),
         btn("Nouveau brouillon", () => compose(gm.available), { cls: "primary", icon: "plus" }), " ",
-        btn("Trier ma boîte avec JARVIS", () => quickAsk("Recherche mes e-mails des 3 derniers jours, résume-les, identifie les actions à faire et les échéances, et propose des réponses en brouillon (sans rien envoyer)."), { cls: "ghost" }),
+        btn("Trier ma boîte avec Nova", () => quickAsk("Recherche mes e-mails des 3 derniers jours, résume-les, identifie les actions à faire et les échéances, et propose des réponses en brouillon (sans rien envoyer)."), { cls: "ghost" }),
         el("h3", {}, "Brouillons locaux"), drafts))));
   async function search() {
     out.replaceChildren(loading("Lecture de Gmail…"));
@@ -32,7 +32,7 @@ export async function render(view, params, app) {
   }
   async function read(t) {
     const body = el("div", {}, loading());
-    modal(t.subject || "Message", body, ["close", (c) => btn("Préparer une réponse avec JARVIS", () => { c(); quickAsk(`Lis le fil Gmail ${t.id} (sujet « ${t.subject} ») et prépare un brouillon de réponse dans Gmail, sans l'envoyer.`); }, { cls: "primary" })], true);
+    modal(t.subject || "Message", body, ["close", (c) => btn("Préparer une réponse avec Nova", () => { c(); quickAsk(`Lis le fil Gmail ${t.id} (sujet « ${t.subject} ») et prépare un brouillon de réponse dans Gmail, sans l'envoyer.`); }, { cls: "primary" })], true);
     try {
       const r = await tool("gmail_lire", { thread_id: t.id });
       body.replaceChildren(el("div", { class: "state-line" }, status(r.state), r.verification),

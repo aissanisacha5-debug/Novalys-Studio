@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import threading
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from .db import dumps, loads, now
 from .errors import Cancelled, ConfirmationRequired, JarvisError, NotFound, ValidationError
@@ -29,7 +29,7 @@ class TaskManager:
         self._cancel: Dict[int, threading.Event] = {}
         self._pause: Dict[int, threading.Event] = {}
         self._locks: Dict[str, int] = {}
-        self.live_voice: Dict[int, bool] = {}      # tâches dont la réponse est lue en flux
+        self.live_voice: Dict[int, str] = {}       # tâches dont la réponse est lue en flux : « mac » (say) ou « client » (Nova)
         self.spoken_live: set = set()
         self.latency: Dict[int, Dict[str, Any]] = {}
         self.interrupted: set = set()              # annulées parce que Sacha a repris la parole
@@ -39,7 +39,7 @@ class TaskManager:
     def create(self, objective: str, title: Optional[str] = None, kind: str = "agent", agent: str = "general",
                conversation_id: Optional[int] = None, project_id: Optional[int] = None, priority: int = 2,
                depends_on: Optional[List[int]] = None, due_date: Optional[str] = None, start: bool = True,
-               parent_id: Optional[int] = None, live_voice: bool = False, client_ts: Optional[float] = None) -> Dict[str, Any]:
+               parent_id: Optional[int] = None, live_voice: Union[bool, str] = False, client_ts: Optional[float] = None) -> Dict[str, Any]:
         if not objective or not objective.strip():
             raise ValidationError("Objectif vide.")
         if kind not in ("agent", "conversation", "todo", "automatisation"):
@@ -61,7 +61,7 @@ class TaskManager:
         import time as _time
         self.latency[tid] = {"received": _time.time(), "client": client_ts}
         if live_voice:
-            self.live_voice[tid] = True
+            self.live_voice[tid] = live_voice if live_voice in ("mac", "client") else "mac"
         self._publish(tid)
         if start and kind != "todo":
             self.start(tid)
@@ -195,6 +195,9 @@ class TaskManager:
             app.bus.publish({"type": "message", "conversation_id": t["conversation_id"], "task_id": tid})
             if tid in self.spoken_live:
                 self.spoken_live.discard(tid)          # déjà lu en flux pendant la génération
+            elif self.live_voice.get(tid) == "client":
+                # Nova : la voix est jouée par l'appareil de Sacha (téléphone ou navigateur), pas par le Mac
+                app.bus.publish({"type": "speech", "task_id": tid, "text": app.voice.clean(message)})
             elif app.settings.get("voice.auto_speak") and status in ("terminee", "attente_reponse", "bloquee", "echouee"):
                 try:
                     app.voice.speak(message)

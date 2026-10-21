@@ -1,9 +1,10 @@
 // Voix : dictée (moteur natif macOS dans l'application, sinon moteur du navigateur), synthèse par la voix macOS (service).
-// Le micro est COUPÉ par défaut ; un bandeau permanent indique toute écoute ; aucun audio n'est enregistré par JARVIS.
+// Le micro est COUPÉ par défaut ; un bandeau permanent indique toute écoute ; aucun audio n'est enregistré par Nova.
 // Modes : 1) bouton micro (une phrase, texte corrigeable avant envoi) ; 2) mains libres (le micro se rouvre après chaque
-// réponse lue) ; 3) mot d'activation « Jarvis » (application seulement, reconnaissance SUR L'APPAREIL uniquement).
+// réponse lue) ; 3) mot d'activation « Nova » (application seulement, reconnaissance SUR L'APPAREIL uniquement).
 import { patch, post } from "./api.js";
 import { $, handleError, toast } from "./ui.js";
+import { isEcho } from "./echo.js";
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const NATIVE = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jarvisVoice);
@@ -31,7 +32,7 @@ export class Voice {
     this.endSilenceMs = Number(v.end_silence_ms) || 900;
     this.handsFree = !!v.hands_free && this.supported;
     const wantWake = !!(v.wake_word && v.wake_word.enabled) && this.wakeSupported;
-    if (wantWake && !this.wakeActive) this.native("wake_start", { phrase: v.wake_word.phrase || "Jarvis" });
+    if (wantWake && !this.wakeActive) this.native("wake_start", { phrase: v.wake_word.phrase || "Nova" });
     if (!wantWake && this.wakeActive) this.native("wake_stop");
     this.render();
   }
@@ -50,13 +51,8 @@ export class Voice {
     if (ev.type === "end") this.setListening(false);
   }
 
-  // Écho : la phrase captée ressemble à ce que JARVIS est en train de dire (haut-parleurs) → ignorée.
-  isEcho(text) {
-    const norm = (x) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 2);
-    const heard = norm(text); if (!heard.length) return true;
-    const said = new Set(norm(this.spokenText));
-    return heard.filter((w) => said.has(w)).length / heard.length >= 0.6;
-  }
+  // Écho : la phrase captée ressemble à ce que Nova est en train de dire (haut-parleurs) → ignorée.
+  isEcho(text) { return isEcho(text, this.spokenText); }
 
   onResult(text, final, confidence) {
     if (this.bargeMode && this.speaking) {
@@ -67,7 +63,7 @@ export class Voice {
     this.interim = text; this.onInterim?.(text); this.render(); this.app.setCore("transcription");
   }
 
-  // Interruption : Sacha reprend la parole pendant que JARVIS parle.
+  // Interruption : Sacha reprend la parole pendant que Nova parle.
   async bargeInNow() {
     if (!this.speaking) return;
     this.speaking = false;
@@ -87,10 +83,10 @@ export class Voice {
     if (ev.type === "voice") {
       if (ev.speaking && ev.text) this.spokenText += " " + ev.text;
       if (!ev.speaking) this.spokenText = "";
-      // Conversation continue + interruption : le micro écoute aussi pendant que JARVIS parle.
+      // Conversation continue + interruption : le micro écoute aussi pendant que Nova parle.
       if (ev.speaking && !this.speaking && this.handsFree && this.bargeIn && !this.listening) setTimeout(() => this.startListening({ barge: true }), 250);
       this.speaking = !!ev.speaking;
-      if (NATIVE && this.wakeActive) this.native(ev.speaking ? "wake_pause" : "wake_resume");   // JARVIS ne s'écoute pas parler
+      if (NATIVE && this.wakeActive) this.native(ev.speaking ? "wake_pause" : "wake_resume");   // Nova ne s'écoute pas parler
       if (!ev.speaking && this.awaitingReply) this.afterReply();
     }
     if (ev.type === "activity" && (ev.state === "termine" || ev.state === "erreur") && this.awaitingReply) {
@@ -108,10 +104,10 @@ export class Voice {
   toggle() { this.listening ? this.stopListening() : this.startListening(); }
 
   startListening(opts = {}) {
-    if (!this.supported) { toast("La dictée n'est pas disponible ici : ouvrez JARVIS avec son application.", "err"); return; }
+    if (!this.supported) { toast("La dictée n'est pas disponible ici : ouvrez Nova avec son application.", "err"); return; }
     if (this.listening) return;
     this.bargeMode = !!opts.barge;
-    if (!this.bargeMode) post("/api/voice/stop").catch(() => {});   // JARVIS se tait quand on lui parle
+    if (!this.bargeMode) post("/api/voice/stop").catch(() => {});   // Nova se tait quand on lui parle
     if (NATIVE) { this.native("start", { silenceMs: this.endSilenceMs }); return; }   // l'indicateur s'allume quand l'application confirme le micro
     const rec = new SR();
     rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
@@ -125,7 +121,7 @@ export class Voice {
       else if (interim) this.onResult(interim, false);
     };
     rec.onerror = (e) => {
-      const msg = { "not-allowed": "Accès au micro refusé : autorisez le micro pour JARVIS (Réglages Système > Confidentialité et sécurité > Microphone).",
+      const msg = { "not-allowed": "Accès au micro refusé : autorisez le micro pour Nova (Réglages Système > Confidentialité et sécurité > Microphone).",
         "no-speech": "Je n'ai rien entendu.", "network": "Reconnaissance vocale indisponible (réseau).", "audio-capture": "Aucun micro détecté." }[e.error] || `Erreur vocale : ${e.error}`;
       if (e.error !== "aborted") toast(msg, e.error === "no-speech" ? "wait" : "err");
     };
@@ -158,8 +154,8 @@ export class Voice {
     banner.classList.toggle("wake", this.wakeActive && !this.listening);
     if (label) {
       label.textContent = this.listening
-        ? (this.interim ? `« ${this.interim} »` : "Microphone actif — JARVIS vous écoute.")
-        : this.wakeActive ? "Mot d'activation actif : dites « Jarvis… » (reconnaissance sur ce Mac, rien n'est envoyé)." : "";
+        ? (this.interim ? `« ${this.interim} »` : "Microphone actif — Nova vous écoute.")
+        : this.wakeActive ? "Mot d'activation actif : dites « Nova… » (reconnaissance sur ce Mac, rien n'est envoyé)." : "";
     }
   }
 

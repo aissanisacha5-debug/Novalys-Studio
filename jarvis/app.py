@@ -23,7 +23,7 @@ from .providers.others import AnthropicAPIProvider, OllamaProvider, OpenAICompat
 from .scheduler import Scheduler
 from .services import Notifier, Secrets, Voice
 from .tasks import TaskManager
-from .tools import browser, data_tools, documents, files, shell, sites, web
+from .tools import assistant, browser, data_tools, documents, files, nova, shell, sites, web
 from .tools.registry import ToolRegistry
 
 _CURRENT: Optional["JarvisApp"] = None
@@ -61,7 +61,8 @@ class JarvisApp:
         for p in (ClaudeCodeProvider(self), OllamaProvider(self), AnthropicAPIProvider(self), OpenAICompatibleProvider(self)):
             self.providers.register(p)
         self.tools = ToolRegistry(self)
-        for mod in (files, shell, web, browser, sites, documents, data_tools):
+        self.nova_view = None                     # dernière vue affichée par Nova (cartes / détail), rechargée par l'accueil
+        for mod in (files, shell, web, browser, sites, documents, data_tools, nova, assistant):
             mod.register(self.tools)
         self.plugins = self._load_plugins()
         self.tasks = TaskManager(self)
@@ -139,7 +140,8 @@ class JarvisApp:
 
     # -- conversation -------------------------------------------------------------------------
     def send_message(self, conversation_id: Optional[int], text: str, project_id: Optional[int] = None,
-                     agent: str = "general", source: str = "texte", client_ts: Optional[float] = None) -> Dict[str, Any]:
+                     agent: str = "general", source: str = "texte", client_ts: Optional[float] = None,
+                     voice_out: str = "mac") -> Dict[str, Any]:
         text = (text or "").strip()
         if not text:
             raise ValidationError("Message vide.")
@@ -150,7 +152,10 @@ class JarvisApp:
             conv = self.conversations.get(conversation_id)
         msg = self.conversations.add_message(conversation_id, "user", text, {"source": source})
         self.bus.publish({"type": "message", "conversation_id": conversation_id})
-        live = source == "voix" or bool(self.settings.get("voice.auto_speak"))
+        live: Any = source == "voix" or bool(self.settings.get("voice.auto_speak"))
+        if live:
+            # « client » : la réponse est envoyée en phrases (événements « speech ») à l'appareil qui parle avec Sacha (Nova)
+            live = "client" if voice_out == "client" else "mac"
         task = self.tasks.create(text, text[:100], "conversation", agent, conversation_id, conv.get("project_id") or project_id,
                                  live_voice=live, client_ts=client_ts)
         self._maybe_summarize(conversation_id)
